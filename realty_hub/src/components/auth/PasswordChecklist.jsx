@@ -18,12 +18,12 @@ export function PasswordChecklist({ value }) {
           >
             <span
               className={cn(
-                'flex size-3.5 items-center justify-center rounded-full border transition-colors duration-150',
-                ok ? 'border-success bg-success text-floral-white' : 'border-ash-grey',
+                'flex size-3.5 items-center justify-center rounded-full border transition-[background-color,border-color,transform] duration-200',
+                ok ? 'scale-110 border-success bg-success text-floral-white' : 'border-ash-grey',
               )}
               aria-hidden="true"
             >
-              {ok && <Check className="size-2.5" strokeWidth={3} />}
+              {ok && <Check className="size-2.5 animate-pop" strokeWidth={3} />}
             </span>
             {rule.label}
             <span className="sr-only">{ok ? '(cumplido)' : '(pendiente)'}</span>

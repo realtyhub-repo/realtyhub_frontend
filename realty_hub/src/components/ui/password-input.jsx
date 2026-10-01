@@ -17,7 +17,7 @@ function PasswordInput({ className, ...props }) {
         aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
         aria-pressed={visible}
       >
-        <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+        <Icon key={String(visible)} className="size-[18px] animate-pop" strokeWidth={1.75} aria-hidden="true" />
       </button>
     </div>
   )

@@ -5,10 +5,10 @@ import { cn } from '@/lib/utils'
 const alertVariants = cva('flex gap-3 rounded-control border px-4 py-3 text-small leading-snug', {
   variants: {
     variant: {
-      error: 'border-error/40 bg-error/[0.06] text-error',
-      success: 'border-success/40 bg-success/[0.07] text-success',
-      warning: 'border-warning/50 bg-warning/[0.08] text-[#7a5824]',
-      info: 'border-ash-grey bg-pale-oak/20 text-evergreen',
+      error: 'animate-alert-shake border-error/40 bg-error/[0.06] text-error',
+      success: 'animate-alert-in border-success/40 bg-success/[0.07] text-success',
+      warning: 'animate-alert-in border-warning/50 bg-warning/[0.08] text-[#7a5824]',
+      info: 'animate-alert-in border-ash-grey bg-pale-oak/20 text-evergreen',
     },
   },
   defaultVariants: { variant: 'info' },

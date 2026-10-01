@@ -30,6 +30,10 @@
 
   --radius-control: 6px;
   --radius-card: 12px;
+  --radius-modal: 16px;
+
+  /* Única sombra de marca (CLAUDE.md §4): teñida de evergreen, nunca gris genérico */
+  --shadow-brand: 0 1px 2px rgb(10 59 53 / 0.06), 0 12px 32px -12px rgb(10 59 53 / 0.22);
 }
 
 @theme inline {
@@ -57,6 +61,8 @@
 
   --radius-control: var(--radius-control);
   --radius-card: var(--radius-card);
+  --radius-modal: var(--radius-modal);
+  --shadow-brand: var(--shadow-brand);
 
   --font-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
@@ -69,6 +75,140 @@
   --text-section: 25px;
   --text-page: 31px;
   --text-hero: 39px;
+
+  /* Movimiento (CLAUDE.md §7): curvas suaves, sin rebotes exagerados */
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-rise: rise 600ms var(--ease-soft) both;
+  --animate-fade: fade 500ms ease-out both;
+  --animate-alert-in: alert-in 360ms var(--ease-soft) both;
+  --animate-shake: shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-pop: pop 260ms var(--ease-soft) both;
+  --animate-overlay-in: fade 200ms ease-out both;
+  --animate-dialog-in: dialog-in 220ms var(--ease-soft) both;
+  --animate-sheet-in: sheet-in 260ms var(--ease-soft) both;
+  --animate-draw: draw 2.4s var(--ease-soft) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes alert-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+    }
+  }
+  @keyframes shake {
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      /* Tailwind v4 centra con la propiedad `translate`, así que aquí solo se usa `transform` */
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
+/* Alerta de error: entra y vibra una vez */
+@utility animate-alert-shake {
+  animation:
+    var(--animate-alert-in),
+    shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) 140ms both;
+}
+
+/* Trazo que se dibuja: requiere pathLength="1" en el elemento SVG */
+@utility draw-stroke {
+  stroke-dasharray: 1;
+  animation: var(--animate-draw);
+}
+
+/* Variante en bucle (dibuja y borra) para indicadores de carga */
+@utility draw-loop {
+  stroke-dasharray: 1;
+  animation: draw 1.6s var(--ease-soft) infinite alternate;
+}
+
+/* Ventanas que se encienden una a una en la ilustración */
+@keyframes window-on {
+  0%,
+  100% {
+    fill-opacity: 0;
+  }
+  8%,
+  60% {
+    fill-opacity: var(--glow, 0.35);
+  }
+}
+@utility window-light {
+  fill: currentColor;
+  fill-opacity: 0;
+  animation: window-on var(--dur, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Lámina saliente de la ilustración: el trazo se "desdibuja" y el conjunto se desvanece.
+   !important para ganar a los retrasos inline de cada trazo. Duración = ERASE_MS. */
+@keyframes erase {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes scene-out {
+  to {
+    opacity: 0;
+  }
+}
+@utility scene-erase {
+  animation: scene-out 900ms ease-in both;
+
+  & .draw-stroke {
+    animation: erase 900ms cubic-bezier(0.55, 0, 0.75, 0.2) both;
+    animation-delay: 0s !important;
+  }
+  & .window-light {
+    animation: none;
+  }
 }
 
 @layer base {
@@ -110,5 +250,7 @@
   *::after {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
   }
 }

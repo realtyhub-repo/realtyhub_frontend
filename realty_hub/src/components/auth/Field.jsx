@@ -15,7 +15,7 @@ export function Field({ id, label, error, hint, action, children }) {
       {children({ id, 'aria-invalid': error ? true : undefined, 'aria-describedby': describedBy })}
       {hint && <div id={`${id}-hint`}>{hint}</div>}
       {error && (
-        <p id={`${id}-error`} className="text-small text-error">
+        <p id={`${id}-error`} className="animate-alert-in text-small text-error">
           {error}
         </p>
       )}
