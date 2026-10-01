@@ -1,0 +1,731 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - Auth Service",
+    "description": "Servicio de autenticación de RealtyHub. Todas las rutas son públicas (no requieren access token).\n\n**Flujo de sesión**\n1. `POST /auth/register` crea la cuenta y envía un correo de verificación.\n2. El usuario abre el enlace del correo; el frontend toma el parámetro `token` y llama a `GET /auth/verify-email?token=...`.\n3. `POST /auth/login` (o `POST /auth/google`) devuelve `{ \"accessToken\": \"...\" }` en el body y el refresh token en la cookie HttpOnly `refresh_token`.\n4. El access token se guarda en memoria (no en localStorage) y se envía a los demás servicios en `Authorization: Bearer \u003Ctoken\u003E`.\n5. Cuando el access token expira (o al recargar la página), `POST /auth/refresh` devuelve uno nuevo y rota la cookie.\n6. `POST /auth/logout` invalida la sesión y borra la cookie.\n\n**Cookies**: `refresh_token` es `HttpOnly`, `Secure` y tiene `Path=/auth`. Todas las llamadas a\n`/auth/*` desde el navegador deben hacerse con `credentials: 'include'` (fetch) o `withCredentials: true` (axios),\ny el frontend debe servirse desde un origen permitido por CORS.\n\n**Errores**: todas las respuestas 4xx/5xx tienen el cuerpo `ErrorResponse`\n`{ \"mensaje\": string, \"status\": number, \"timestamp\": string }`. `mensaje` está listo para mostrarse al usuario.\n\n**Access token**: JWT RS256 con claims `sub` (id del usuario, UUID) y `rol`\n(`ADMINISTRADOR_CENTRAL`, `GERENTE_OFICINA` o `AGENTE`). La clave pública está en `GET /.well-known/jwks.json`.\n",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8081",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "JWKS",
+      "description": "Claves públicas para validar los access tokens"
+    },
+    {
+      "name": "Autenticación",
+      "description": "Registro, login (email o Google), renovación de sesión y logout"
+    },
+    {
+      "name": "Verificación de email",
+      "description": "Activación de la cuenta tras el registro"
+    },
+    {
+      "name": "Contraseña",
+      "description": "Recuperación de contraseña por correo (solo cuentas con email y contraseña)"
+    }
+  ],
+  "paths": {
+    "/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Contraseña"
+        ],
+        "summary": "Restablecer contraseña",
+        "description": "Cambia la contraseña usando el token del enlace recibido por correo. `password` y `confirmPassword` deben coincidir. Después, el usuario inicia sesión con POST /auth/login.",
+        "operationId": "confirmarReset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Contraseña actualizada"
+          },
+          "400": {
+            "description": "Token inválido, expirado o ya utilizado, contraseña que no cumple los requisitos o contraseñas que no coinciden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/resend-verification": {
+      "post": {
+        "tags": [
+          "Verificación de email"
+        ],
+        "summary": "Reenviar correo de verificación",
+        "description": "Envía un nuevo token de verificación al correo indicado si la cuenta existe y aún no está verificada; el token anterior deja de ser válido. Por seguridad responde 200 aunque el correo no exista o ya esté verificado.",
+        "operationId": "reenviarEmailVerificacion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Solicitud procesada"
+          },
+          "400": {
+            "description": "Email con formato inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Registrar usuario",
+        "description": "Crea la cuenta y envía un correo de verificación. No se puede iniciar sesión hasta verificar el email. No devuelve tokens ni body.",
+        "operationId": "registrar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario creado. Mostrar al usuario que revise su correo"
+          },
+          "400": {
+            "description": "Datos inválidos, contraseña que no cumple los requisitos o contraseñas que no coinciden. `mensaje` trae los errores separados por coma",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El email ya está registrado (con email/contraseña o con Google)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Renovar access token",
+        "description": "No lleva body: lee el refresh token de la cookie `refresh_token`, así que el cliente web debe llamar con `credentials: 'include'`. Devuelve un nuevo access token y rota el refresh token (la cookie se reemplaza por una nueva). Úsalo cuando el access token expire o al recargar la página para recuperar la sesión. Si un refresh token ya usado se vuelve a enviar, se cierran todas las sesiones del usuario.",
+        "operationId": "refresh",
+        "parameters": [
+          {
+            "name": "refresh_token",
+            "in": "cookie",
+            "description": "Refresh token puesto por el servidor en login/refresh. El navegador lo envía solo; no es accesible desde JavaScript (HttpOnly)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token renovado",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Nuevo refresh_token=\u003Ctoken\u003E; Path=/auth; Max-Age=\u003Cdías\u003E; Secure; HttpOnly; SameSite=None",
+                "style": "simple",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessToken"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie ausente, inválida, revocada o expirada. El usuario debe iniciar sesión de nuevo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Cerrar sesión",
+        "description": "No lleva body: invalida el refresh token de la cookie `refresh_token` y borra la cookie del navegador. Llamar con `credentials: 'include'`. El cliente debe descartar también el access token que tenga en memoria.",
+        "operationId": "logout",
+        "parameters": [
+          {
+            "name": "refresh_token",
+            "in": "cookie",
+            "description": "Refresh token puesto por el servidor en login/refresh. El navegador lo envía solo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sesión cerrada (también si el token ya no era válido)",
+            "headers": {
+              "Set-Cookie": {
+                "description": "refresh_token vacío con Max-Age=0 (borra la cookie)",
+                "style": "simple",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No se envió la cookie `refresh_token`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Iniciar sesión con email y contraseña",
+        "description": "Devuelve el access token en el body y establece el refresh token en la cookie HttpOnly `refresh_token`. Llamar con `credentials: 'include'` para que el navegador guarde la cookie. El usuario debe haber verificado su email antes de poder iniciar sesión.",
+        "operationId": "loginLocal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Login exitoso",
+            "headers": {
+              "Set-Cookie": {
+                "description": "refresh_token=\u003Ctoken\u003E; Path=/auth; Max-Age=\u003Cdías\u003E; Secure; HttpOnly; SameSite=None",
+                "style": "simple",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body inválido (email mal formado o password vacío)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Email o contraseña incorrectos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El email aún no ha sido verificado. Ofrecer al usuario reenviar el correo con POST /auth/resend-verification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El correo está registrado con Google: debe usar POST /auth/google",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Iniciar sesión con Google",
+        "description": "Valida el `id_token` obtenido con Google Sign-In. Si el usuario no existe, se crea automáticamente (no requiere verificar email). Devuelve el access token en el body y establece el refresh token en la cookie HttpOnly `refresh_token`. Llamar con `credentials: 'include'` para que el navegador guarde la cookie.",
+        "operationId": "loginGoogle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Login exitoso",
+            "headers": {
+              "Set-Cookie": {
+                "description": "refresh_token=\u003Ctoken\u003E; Path=/auth; Max-Age=\u003Cdías\u003E; Secure; HttpOnly; SameSite=None",
+                "style": "simple",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falta `id_token` en el body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "id_token de Google inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El correo ya está registrado con email y contraseña (proveedor LOCAL)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Contraseña"
+        ],
+        "summary": "Solicitar recuperación de contraseña",
+        "description": "Si el correo está registrado con email y contraseña, se envía un enlace con un token para restablecer la contraseña. Por seguridad responde 200 aunque el correo no exista o sea una cuenta de Google.",
+        "operationId": "solicitarReset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Solicitud procesada"
+          },
+          "400": {
+            "description": "Email vacío o con formato inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify-email": {
+      "get": {
+        "tags": [
+          "Verificación de email"
+        ],
+        "summary": "Verificar email",
+        "description": "Activa la cuenta usando el token que llega en el enlace del correo enviado al registrarse. El frontend debe leer el parámetro `token` de la URL del enlace y llamar a este endpoint una sola vez (el token es de un solo uso). Después de verificar, el usuario ya puede usar POST /auth/login.",
+        "operationId": "verificarEmail",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "description": "Token de verificación recibido en el enlace del correo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "b7f1c2e4-9a3d-4e6b-8c11-2f5d7a9e0c34"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email verificado"
+          },
+          "400": {
+            "description": "Token inválido, expirado o ya utilizado. Si expiró, ofrecer POST /auth/resend-verification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El usuario asociado al token no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": [
+          "JWKS"
+        ],
+        "summary": "Obtener claves públicas (JWKS)",
+        "description": "Devuelve el JSON Web Key Set con la clave pública RSA usada para firmar los access tokens (RS256). Lo consumen el gateway y los demás microservicios; el frontend normalmente no lo necesita.",
+        "operationId": "jwks",
+        "responses": {
+          "200": {
+            "description": "JWKS en formato estándar `{ \"keys\": [ ... ] }`",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResetPasswordRequest": {
+        "type": "object",
+        "description": "Datos para restablecer la contraseña usando el token recibido por correo. `password` y `confirmPassword` deben coincidir",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token de recuperación que llega en el enlace del correo (parámetro `token` de la URL)",
+            "example": "b7f1c2e4-9a3d-4e6b-8c11-2f5d7a9e0c34",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Nueva contraseña: mínimo 8 caracteres, una mayúscula y un número",
+            "example": "NuevaClave123",
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Z])(?=.*[0-9]).{8,}$"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "format": "password",
+            "description": "Debe ser igual a password",
+            "example": "NuevaClave123",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "confirmPassword",
+          "password",
+          "token"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Formato estándar de todas las respuestas de error (4xx y 5xx)",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje legible para mostrar al usuario. En errores de validación (400) contiene todos los mensajes separados por coma",
+            "example": "Este email o contraseña incorrecta"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código HTTP de la respuesta",
+            "example": 401
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del servidor en que ocurrió el error (ISO-8601, sin zona horaria)",
+            "example": "2026-09-28T14:35:12.123"
+          }
+        },
+        "required": [
+          "mensaje",
+          "status",
+          "timestamp"
+        ]
+      },
+      "ResendVerificationRequest": {
+        "type": "object",
+        "description": "Datos para reenviar el correo de verificación de cuenta",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Correo de la cuenta pendiente de verificar",
+            "example": "juan@correo.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "description": "Datos para registrar un nuevo usuario. `password` y `confirmPassword` deben coincidir",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Correo del usuario (debe ser único)",
+            "example": "juan@correo.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Mínimo 8 caracteres, al menos una mayúscula y un número",
+            "example": "MiClave123",
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Z])(?=.*[0-9]).{8,}$"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "format": "password",
+            "description": "Debe ser igual a password",
+            "example": "MiClave123",
+            "minLength": 1
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre del usuario",
+            "example": "Juan Pérez",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "confirmPassword",
+          "email",
+          "nombre",
+          "password"
+        ]
+      },
+      "AccessToken": {
+        "type": "object",
+        "description": "Access token devuelto por /auth/login, /auth/google y /auth/refresh. El refresh token NO viaja en el body: llega en la cookie HttpOnly `refresh_token`",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "JWT firmado con RS256. Claims: `sub` = id del usuario (UUID), `rol` = ADMINISTRADOR_CENTRAL | GERENTE_OFICINA | AGENTE, `exp` = expiración. Guárdalo en memoria y envíalo en el header `Authorization: Bearer \u003Ctoken\u003E`. Cuando expire, llama a POST /auth/refresh para obtener uno nuevo",
+            "example": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI3YjJmLi4uIiwicm9sIjoiQUdFTlRFIiwiZXhwIjoxNzU5MDAwMDAwfQ.firma"
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "description": "Credenciales para iniciar sesión con email y contraseña",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Correo del usuario",
+            "example": "juan@correo.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Contraseña del usuario",
+            "example": "MiClave123",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "GoogleLoginRequest": {
+        "type": "object",
+        "description": "Datos para iniciar sesión con Google",
+        "properties": {
+          "id_token": {
+            "type": "string",
+            "description": "ID token (JWT) que entrega Google Identity Services en el cliente (campo `credential` de la respuesta de Google Sign-In). No es el access token de Google",
+            "example": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMyIsInR5cCI6IkpXVCJ9...",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id_token"
+        ]
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "description": "Datos para solicitar el correo de recuperación de contraseña",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Correo con el que se registró el usuario",
+            "example": "juan@correo.com",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "email"
+        ]
+      }
+    }
+  }
+}
