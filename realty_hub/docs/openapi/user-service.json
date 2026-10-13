@@ -1,0 +1,2247 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - User Service",
+    "description": "Servicio de usuarios, oficinas y agentes de RealtyHub.\n\n**Autenticación (vía API Gateway)**\nEl cliente (frontend) envía `Authorization: Bearer \u003CaccessToken\u003E` al gateway. El gateway valida el JWT\ny reenvía la petición a este servicio con dos headers:\n- `X-User-Id`: claim `sub` del token (UUID del usuario).\n- `X-User-Role`: claim `rol` del token (`ADMINISTRADOR_CENTRAL`, `GERENTE_OFICINA`, `AGENTE` o `CLIENTE`).\n\nEl frontend **nunca** envía esos headers: el gateway los elimina si vienen del cliente y los vuelve a\ngenerar a partir del token. Solo se envían a mano al probar este servicio directamente (sin gateway),\npor ejemplo desde este Swagger UI. Si faltan o son inválidos, el servicio responde `401`.\n\n**Rutas expuestas por el gateway**: `/users/**`, `/oficinas/**`, `/agentes/**`.\nSon públicas (no requieren token): `GET /oficinas/**` y `GET /agentes/{id}`. El resto exige token.\nLas rutas `/internal/**` **no** pasan por el gateway: son solo para comunicación entre microservicios.\n\n**Errores**: la mayoría de errores de negocio tienen el cuerpo `ErrorResponse`\n`{ \"mensaje\": string, \"status\": number, \"timestamp\": string }`. Algunos (usuario no encontrado,\nparámetros mal formados, JSON inválido) usan el cuerpo por defecto de Spring Boot\n`{ \"timestamp\", \"status\", \"error\", \"path\" }`. Decidir siempre por el código HTTP.\n",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8082",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Interno - Agentes",
+      "description": "Solo comunicación entre microservicios. No expuesto por el API Gateway"
+    },
+    {
+      "name": "Usuarios",
+      "description": "Perfil del usuario autenticado y administración de usuarios. Todas las rutas requieren token"
+    },
+    {
+      "name": "Agentes",
+      "description": "Registro de agentes inmobiliarios y su oficina. GET /agentes/{id} es público; crear/modificar requiere ADMINISTRADOR_CENTRAL o GERENTE_OFICINA"
+    },
+    {
+      "name": "Oficinas",
+      "description": "Oficinas centrales y sucursales, su gerente y sus agentes. Los GET son públicos; crear/modificar requiere ADMINISTRADOR_CENTRAL"
+    },
+    {
+      "name": "Interno - Usuarios",
+      "description": "Solo comunicación entre microservicios. No expuesto por el API Gateway"
+    }
+  ],
+  "paths": {
+    "/users/{id}/status": {
+      "put": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "Activar o desactivar un usuario",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. Cambia el campo `activo` del usuario. Un administrador no puede cambiar su propio estado. Los agentes desactivados dejan de aparecer en `GET /internal/agentes`.",
+        "operationId": "actualizarStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del usuario a activar/desactivar",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Estado actualizado"
+          },
+          "400": {
+            "description": "`id` no es UUID o JSON mal formado (cuerpo de error por defecto de Spring Boot)"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado (cuerpo de error por defecto de Spring Boot)"
+          },
+          "409": {
+            "description": "Intenta cambiar su propio estado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/{id}/role": {
+      "put": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "Cambiar rol de un usuario",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. Asigna un nuevo rol al usuario indicado. Un administrador no puede cambiar su propio rol. El cambio se refleja en el JWT del usuario recién en su próximo login/refresh (el token actual sigue teniendo el rol anterior hasta que expire).",
+        "operationId": "actualizarRol",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del usuario al que se le cambia el rol",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarRolRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Rol actualizado"
+          },
+          "400": {
+            "description": "`id` no es UUID o `rolUsuario` no es un rol válido (cuerpo de error por defecto de Spring Boot)"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado (cuerpo de error por defecto de Spring Boot)"
+          },
+          "409": {
+            "description": "Intenta cambiar su propio rol",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "Obtener mi perfil",
+        "description": "Devuelve el perfil completo del usuario autenticado (el de `X-User-Id`). Disponible para cualquier rol. Es el endpoint a usar después del login para obtener nombre, foto, teléfono, etc.",
+        "operationId": "usuarioActual",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Perfil del usuario",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioDetalleResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos (a través del gateway: falta el token o es inválido)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El usuario del token no existe en user-service (cuerpo de error por defecto de Spring Boot)"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "Actualizar mi perfil",
+        "description": "Actualiza nombre, teléfono y/o foto del usuario autenticado. Solo se modifican los campos enviados con valor (los `null` u omitidos se dejan como están). No permite cambiar email ni rol.",
+        "operationId": "actualizarUsuario",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarPerfilRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Perfil actualizado"
+          },
+          "400": {
+            "description": "JSON mal formado (cuerpo de error por defecto de Spring Boot)"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El usuario del token no existe (cuerpo de error por defecto de Spring Boot)"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/oficinas/{id}": {
+      "get": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Obtener oficina por id",
+        "description": "Público.",
+        "operationId": "buscar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la oficina",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Oficina encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OficinaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` no es un UUID válido (cuerpo de error por defecto de Spring Boot)"
+          },
+          "404": {
+            "description": "Oficina no encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Actualizar oficina",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. Actualización parcial: solo se modifican los campos enviados con valor. Es obligatorio enviar al menos `nombre` o `region` (enviar solo coordenadas responde 400). No permite cambiar `tipo`, `oficinaCentralId` ni gerente.",
+        "operationId": "actualizarOficina",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la oficina",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarOficinaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Oficina actualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OficinaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No se envió ni `nombre` ni `region`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oficina no encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/oficinas/{id}/gerente": {
+      "put": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Asignar gerente a una oficina",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. El usuario indicado debe tener rol `GERENTE_OFICINA` y no gerenciar otra oficina. Si la oficina ya tenía gerente, se reemplaza.",
+        "operationId": "asignarGerente",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la oficina",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AsignarGerenteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Gerente asignado"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oficina no encontrada (`ErrorResponse`) o usuario `gerenteId` no encontrado (cuerpo de error por defecto de Spring Boot)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El usuario no tiene rol GERENTE_OFICINA, o ya gerencia otra oficina",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Quitar el gerente de una oficina",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. Deja la oficina sin gerente. No cambia el rol del usuario.",
+        "operationId": "removerGerente",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la oficina",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Gerente removido"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oficina no encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "La oficina no tiene gerente asignado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/agentes/{id}": {
+      "get": {
+        "tags": [
+          "Agentes"
+        ],
+        "summary": "Obtener agente por id de usuario",
+        "description": "Público. **Importante:** `{id}` es el **id del usuario** del agente (`usuarioId`), no el `id` del registro de agente. Útil para mostrar la ficha del agente a partir del `sub` del JWT o del `agenteId` que guardan otros servicios.",
+        "operationId": "buscarAgentePorId",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del USUARIO del agente (usuarioId), no el id del registro agente",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agente encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgenteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` no es un UUID válido (cuerpo de error por defecto de Spring Boot)"
+          },
+          "404": {
+            "description": "No existe un agente para ese usuario",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Agentes"
+        ],
+        "summary": "Actualizar agente",
+        "description": "Cambia la oficina del agente y, opcionalmente, su zona de especialidad (si `zonaEspecialidad` es null u omitida, se conserva la actual). **Importante:** aquí `{id}` es el `id` del registro de agente (campo `id` de `AgenteResponse`), no el id del usuario.\n\nPermisos: `ADMINISTRADOR_CENTRAL` cualquier oficina; `GERENTE_OFICINA` solo si `oficinaId` es la oficina que gerencia.",
+        "operationId": "actualizarAgente",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del registro de agente (no el usuarioId)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarAgenteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Agente actualizado"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no es ADMINISTRADOR_CENTRAL ni GERENTE_OFICINA, el gerente no gerencia ninguna oficina, o `oficinaId` no es la oficina del gerente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agente u oficina no encontrados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/oficinas": {
+      "get": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Listar oficinas",
+        "description": "Público. Devuelve todas las oficinas (centrales y sucursales). No está paginado.",
+        "operationId": "listarOficinas",
+        "responses": {
+          "200": {
+            "description": "Lista de oficinas (puede ser vacía)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OficinaResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Crear oficina",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. Una oficina `CENTRAL` no lleva `oficinaCentralId`; una `SUCURSAL` debe indicar el id de una oficina existente de tipo `CENTRAL`. La oficina se crea sin gerente (ver `PUT /oficinas/{id}/gerente`).",
+        "operationId": "crearOficina",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearOficinaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Oficina creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OficinaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CENTRAL con `oficinaCentralId`, SUCURSAL sin `oficinaCentralId`, o `oficinaCentralId` que no es de tipo CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La `oficinaCentralId` indicada no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Faltan campos obligatorios (nombre, region, latitud, longitud o tipo): hoy la validación del body no está activa y falla al guardar"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/internal/usuario": {
+      "post": {
+        "tags": [
+          "Interno - Usuarios"
+        ],
+        "summary": "Crear usuario",
+        "description": "Usado por auth-service al registrar una cuenta (email o Google). Crea el usuario con rol `CLIENTE` y activo. Devuelve el id y el rol, que auth-service usa como claims `sub` y `rol` del JWT. Responde 200 (no 201).",
+        "operationId": "crearUsuario",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearUsuarioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Usuario creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El email ya está registrado (el servicio usa 404 para este caso)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/ADMIN": {
+      "post": {
+        "tags": [
+          "Interno - Usuarios"
+        ],
+        "summary": "Utilidad de desarrollo: forzar mi rol",
+        "description": "Asigna al usuario de `X-User-Id` el rol enviado en `X-User-Role` y devuelve su perfil. Sirve para crear el primer ADMINISTRADOR_CENTRAL en desarrollo. Como `/internal/**` no pasa por el gateway, los headers se envían a mano. **No debe estar accesible en producción.**",
+        "operationId": "cambiarRol",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rol actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioDetalleResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado (cuerpo de error por defecto de Spring Boot)"
+          }
+        }
+      }
+    },
+    "/agentes": {
+      "post": {
+        "tags": [
+          "Agentes"
+        ],
+        "summary": "Registrar agente",
+        "description": "Convierte un usuario existente en agente de una oficina. El usuario debe tener rol `AGENTE` o `GERENTE_OFICINA` (cambiarlo antes con `PUT /users/{id}/role`) y no estar registrado ya como agente.\n\nPermisos: `ADMINISTRADOR_CENTRAL` puede registrar en cualquier oficina; `GERENTE_OFICINA` solo en la oficina que gerencia. Responde 200 (no 201).",
+        "operationId": "crearAgente",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearAgenteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Agente registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgenteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El usuario no tiene rol AGENTE ni GERENTE_OFICINA",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no es ADMINISTRADOR_CENTRAL ni GERENTE_OFICINA, el gerente no gerencia ninguna oficina, o `oficinaId` no es la oficina del gerente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oficina no encontrada (`ErrorResponse`) o usuario no encontrado (cuerpo de error por defecto de Spring Boot)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El usuario ya está registrado como agente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "Listar usuarios",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. Devuelve todos los usuarios, opcionalmente filtrados por estado y/o rol. Sin filtros devuelve todos. No está paginado.",
+        "operationId": "listarUsuarios",
+        "parameters": [
+          {
+            "name": "activo",
+            "in": "query",
+            "description": "Filtra por estado: `true` activos, `false` desactivados. Omitir para no filtrar",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "example": true
+          },
+          {
+            "name": "rol",
+            "in": "query",
+            "description": "Filtra por rol. Omitir para no filtrar",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "AGENTE"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de usuarios (puede ser vacía)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsuarioDetalleResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Valor de `rol` o `activo` inválido (cuerpo de error por defecto de Spring Boot)"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": [
+          "Usuarios"
+        ],
+        "summary": "Obtener usuario por id",
+        "description": "Solo `ADMINISTRADOR_CENTRAL`. Devuelve el perfil completo de cualquier usuario. Para el propio perfil usar `GET /users/me`.",
+        "operationId": "buscarUsuarioId",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del usuario (UUID)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (claim `sub` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (claim `rol` del JWT). Lo agrega el API Gateway; el frontend NO lo envía. Solo se envía a mano al probar el servicio sin gateway",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            },
+            "example": "ADMINISTRADOR_CENTRAL"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuario encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioDetalleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` no es un UUID válido (cuerpo de error por defecto de Spring Boot)"
+          },
+          "401": {
+            "description": "Faltan los headers X-User-Id / X-User-Role o son inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es ADMINISTRADOR_CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado (cuerpo de error por defecto de Spring Boot)"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/oficinas/{id}/sucursales": {
+      "get": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Listar sucursales de una oficina central",
+        "description": "Público. Devuelve las oficinas `SUCURSAL` cuya `oficinaCentralId` es el id indicado. El id debe ser de una oficina `CENTRAL`.",
+        "operationId": "oficinasHijas",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la oficina CENTRAL",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucursales (puede ser vacía)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OficinaResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "La oficina indicada no es de tipo CENTRAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oficina no encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oficinas/{id}/agentes": {
+      "get": {
+        "tags": [
+          "Oficinas"
+        ],
+        "summary": "Listar agentes de una oficina",
+        "description": "Público. Devuelve los agentes asignados a la oficina, con su nombre y el nombre de la oficina. Incluye agentes cuyo usuario está desactivado.",
+        "operationId": "listarAgentePorOficina",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la oficina",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agentes de la oficina (puede ser vacía)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgenteResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oficina no encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/usuario/{id}": {
+      "get": {
+        "tags": [
+          "Interno - Usuarios"
+        ],
+        "summary": "Obtener id y rol de un usuario",
+        "description": "Usado por auth-service en login/refresh para obtener el rol actual del usuario y meterlo en el JWT.",
+        "operationId": "buscarUsuario",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del usuario",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuario encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado (cuerpo de error por defecto de Spring Boot)"
+          }
+        }
+      }
+    },
+    "/internal/usuario/{id}/contacto": {
+      "get": {
+        "tags": [
+          "Interno - Usuarios"
+        ],
+        "summary": "Obtener datos de contacto de un usuario",
+        "description": "Usado por lead-service para obtener nombre, teléfono y email del agente/usuario de un lead.",
+        "operationId": "buscarUsuarioParaLead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del usuario",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuario encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioContactoInternalResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado (cuerpo de error por defecto de Spring Boot)"
+          }
+        }
+      }
+    },
+    "/internal/usuario/detalle/{id}": {
+      "get": {
+        "tags": [
+          "Interno - Usuarios"
+        ],
+        "summary": "Obtener id y nombre de un usuario",
+        "description": "Usado por property-service para mostrar el nombre del agente de una propiedad.",
+        "operationId": "buscarUsuarioPropiedad",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del usuario",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuario encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioInternalResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado (cuerpo de error por defecto de Spring Boot)"
+          }
+        }
+      }
+    },
+    "/internal/agentes": {
+      "get": {
+        "tags": [
+          "Interno - Agentes"
+        ],
+        "summary": "Listar agentes activos de varias oficinas",
+        "description": "Usado por lead-service para obtener los agentes de las oficinas involucradas. Devuelve solo agentes cuyo usuario está activo. Los ids se envían como `?oficinaIds=a,b` o `?oficinaIds=a&oficinaIds=b`.",
+        "operationId": "listarAgentesInterno",
+        "parameters": [
+          {
+            "name": "oficinaIds",
+            "in": "query",
+            "description": "Ids de las oficinas",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agentes activos de esas oficinas (puede ser vacía)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgenteInternalResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falta `oficinaIds` o algún valor no es UUID (cuerpo de error por defecto de Spring Boot)"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActualizarStatusRequest": {
+        "type": "object",
+        "description": "Nuevo estado del usuario",
+        "properties": {
+          "status": {
+            "type": "boolean",
+            "description": "`true` activa al usuario, `false` lo desactiva",
+            "example": false
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Formato de las respuestas de error de negocio (4xx). Errores no controlados por el servicio (usuario no encontrado, UUID o JSON mal formado) usan en cambio el cuerpo por defecto de Spring Boot",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje legible del error",
+            "example": "Acceso no autorizado"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código HTTP de la respuesta",
+            "example": 403
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del servidor en que ocurrió el error (ISO-8601, sin zona horaria)",
+            "example": "2026-10-07T14:35:12.123"
+          }
+        },
+        "required": [
+          "mensaje",
+          "status",
+          "timestamp"
+        ]
+      },
+      "ActualizarRolRequest": {
+        "type": "object",
+        "description": "Nuevo rol para el usuario",
+        "properties": {
+          "rolUsuario": {
+            "type": "string",
+            "description": "Rol a asignar",
+            "enum": [
+              "ADMINISTRADOR_CENTRAL",
+              "GERENTE_OFICINA",
+              "AGENTE",
+              "CLIENTE"
+            ],
+            "example": "AGENTE",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "rolUsuario"
+        ]
+      },
+      "ActualizarPerfilRequest": {
+        "type": "object",
+        "description": "Datos editables del perfil propio. Los campos null u omitidos no se modifican",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "description": "Nombre a mostrar",
+            "example": "Juan Pérez",
+            "minLength": 1
+          },
+          "urlFoto": {
+            "type": "string",
+            "description": "URL pública de la foto de perfil",
+            "example": "https://cdn.realty-hub.site/fotos/juan.jpg"
+          },
+          "telefono": {
+            "type": "string",
+            "description": "Teléfono de contacto",
+            "example": "+51 987654321"
+          }
+        },
+        "required": [
+          "nombre"
+        ]
+      },
+      "ActualizarOficinaRequest": {
+        "type": "object",
+        "description": "Actualización parcial de una oficina: solo se modifican los campos enviados con valor. Es obligatorio enviar al menos `nombre` o `region`",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "description": "Nuevo nombre",
+            "example": "Oficina Centro"
+          },
+          "region": {
+            "type": "string",
+            "description": "Nueva región",
+            "example": "Lima"
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Nueva latitud (-90 a 90)",
+            "example": -12.046374,
+            "maximum": 90,
+            "minimum": -90
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Nueva longitud (-180 a 180)",
+            "example": -77.042793,
+            "maximum": 180,
+            "minimum": -180
+          }
+        }
+      },
+      "OficinaResponse": {
+        "type": "object",
+        "description": "Oficina inmobiliaria (central o sucursal)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina",
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre",
+            "example": "Oficina Miraflores"
+          },
+          "region": {
+            "type": "string",
+            "description": "Región o ciudad",
+            "example": "Lima"
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Latitud",
+            "example": -12.121831
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Longitud",
+            "example": -77.029713
+          },
+          "tipo": {
+            "type": "string",
+            "description": "Tipo de oficina",
+            "enum": [
+              "CENTRAL",
+              "SUCURSAL"
+            ],
+            "example": "SUCURSAL"
+          },
+          "oficinaCentralId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina CENTRAL de la que depende. null si es CENTRAL",
+            "example": "1f2e3d4c-5b6a-4987-8a7b-6c5d4e3f2a1b"
+          },
+          "gerenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario GERENTE_OFICINA asignado. null si no tiene gerente",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          }
+        }
+      },
+      "AsignarGerenteRequest": {
+        "type": "object",
+        "description": "Gerente a asignar a la oficina",
+        "properties": {
+          "gerenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario con rol GERENTE_OFICINA que no gerencie otra oficina",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          }
+        },
+        "required": [
+          "gerenteId"
+        ]
+      },
+      "ActualizarAgenteRequest": {
+        "type": "object",
+        "description": "Datos para actualizar un agente",
+        "properties": {
+          "oficinaId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Oficina a la que queda asignado el agente (puede ser la misma que ya tiene)",
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          "zonaEspecialidad": {
+            "type": "string",
+            "description": "Nueva zona de especialidad. Si es null u omitida, se conserva la actual",
+            "example": "Zona norte"
+          }
+        },
+        "required": [
+          "oficinaId"
+        ]
+      },
+      "CrearOficinaRequest": {
+        "type": "object",
+        "description": "Datos para crear una oficina. CENTRAL sin `oficinaCentralId`; SUCURSAL con el id de una CENTRAL",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "description": "Nombre de la oficina",
+            "example": "Oficina Miraflores"
+          },
+          "region": {
+            "type": "string",
+            "description": "Región o ciudad",
+            "example": "Lima",
+            "minLength": 1
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Latitud (-90 a 90)",
+            "example": -12.121831,
+            "maximum": 90,
+            "minimum": -90
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Longitud (-180 a 180)",
+            "example": -77.029713,
+            "maximum": 180,
+            "minimum": -180
+          },
+          "tipo": {
+            "type": "string",
+            "description": "Tipo de oficina",
+            "enum": [
+              "CENTRAL",
+              "SUCURSAL"
+            ],
+            "example": "SUCURSAL"
+          },
+          "oficinaCentralId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina CENTRAL a la que pertenece. Obligatorio si `tipo` = SUCURSAL; debe ser null si `tipo` = CENTRAL",
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          }
+        },
+        "required": [
+          "latitud",
+          "longitud",
+          "nombre",
+          "region",
+          "tipo"
+        ]
+      },
+      "CrearUsuarioRequest": {
+        "type": "object",
+        "description": "Datos para crear un usuario (lo envía auth-service al registrar una cuenta)",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email del usuario (único)",
+            "example": "juan@correo.com"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre del usuario",
+            "example": "Juan Pérez"
+          },
+          "urlFoto": {
+            "type": "string",
+            "description": "Foto de perfil (llega en el login con Google)",
+            "example": "https://lh3.googleusercontent.com/a/abc123"
+          }
+        },
+        "required": [
+          "email",
+          "nombre"
+        ]
+      },
+      "UsuarioResponse": {
+        "type": "object",
+        "description": "Id y rol de un usuario. auth-service los usa como claims `sub` y `rol` del JWT",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          "rolUsuario": {
+            "type": "string",
+            "description": "Rol actual del usuario",
+            "enum": [
+              "ADMINISTRADOR_CENTRAL",
+              "GERENTE_OFICINA",
+              "AGENTE",
+              "CLIENTE"
+            ],
+            "example": "CLIENTE"
+          }
+        }
+      },
+      "UsuarioDetalleResponse": {
+        "type": "object",
+        "description": "Perfil completo de un usuario",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario (es el `sub` del JWT)",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email",
+            "example": "juan@correo.com"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre",
+            "example": "Juan Pérez"
+          },
+          "urlFoto": {
+            "type": "string",
+            "description": "URL de la foto de perfil",
+            "example": "https://cdn.realty-hub.site/fotos/juan.jpg"
+          },
+          "telefono": {
+            "type": "string",
+            "description": "Teléfono",
+            "example": "+51 987654321"
+          },
+          "rol": {
+            "type": "string",
+            "description": "Rol actual en base de datos (puede diferir del JWT si cambió después del último login/refresh)",
+            "enum": [
+              "ADMINISTRADOR_CENTRAL",
+              "GERENTE_OFICINA",
+              "AGENTE",
+              "CLIENTE"
+            ],
+            "example": "AGENTE"
+          },
+          "activo": {
+            "type": "boolean",
+            "description": "`false` si un administrador desactivó al usuario",
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha de creación (ISO-8601, sin zona horaria)",
+            "example": "2026-09-28T14:35:12.123"
+          }
+        }
+      },
+      "CrearAgenteRequest": {
+        "type": "object",
+        "description": "Datos para registrar a un usuario existente como agente de una oficina",
+        "properties": {
+          "usuarioId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario (debe tener rol AGENTE o GERENTE_OFICINA)",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          "oficinaId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina. Si quien llama es GERENTE_OFICINA, debe ser la oficina que gerencia",
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          "zonaEspecialidad": {
+            "type": "string",
+            "description": "Zona o sector en el que se especializa el agente",
+            "example": "Zona norte"
+          }
+        },
+        "required": [
+          "oficinaId",
+          "usuarioId"
+        ]
+      },
+      "AgenteResponse": {
+        "type": "object",
+        "description": "Agente con el nombre de su usuario y de su oficina",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del registro de agente. Es el que se usa en PUT /agentes/{id}",
+            "example": "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d"
+          },
+          "usuarioId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario del agente. Es el que se usa en GET /agentes/{id}",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          "nombreUsuario": {
+            "type": "string",
+            "description": "Nombre del usuario",
+            "example": "Juan Pérez"
+          },
+          "oficinaId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina a la que pertenece",
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          "nombreOficina": {
+            "type": "string",
+            "description": "Nombre de la oficina",
+            "example": "Oficina Miraflores"
+          },
+          "zonaEspecialidad": {
+            "type": "string",
+            "description": "Zona de especialidad",
+            "example": "Zona norte"
+          }
+        }
+      },
+      "UsuarioContactoInternalResponse": {
+        "type": "object",
+        "description": "Datos de contacto de un usuario para otros microservicios",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre",
+            "example": "Juan Pérez"
+          },
+          "telefono": {
+            "type": "string",
+            "description": "Teléfono",
+            "example": "+51 987654321"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email",
+            "example": "juan@correo.com"
+          }
+        }
+      },
+      "UsuarioInternalResponse": {
+        "type": "object",
+        "description": "Id y nombre de un usuario para otros microservicios",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre",
+            "example": "Juan Pérez"
+          }
+        }
+      },
+      "AgenteInternalResponse": {
+        "type": "object",
+        "description": "Agente activo resumido para otros microservicios",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del registro de agente",
+            "example": "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d"
+          },
+          "usuarioId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario del agente",
+            "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
+          },
+          "oficinaId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina del agente",
+            "example": "3c9d8e7f-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre del usuario",
+            "example": "Juan Pérez"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "description": "Access token emitido por auth-service. Lo valida el API Gateway, que lo traduce a los headers X-User-Id y X-User-Role",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

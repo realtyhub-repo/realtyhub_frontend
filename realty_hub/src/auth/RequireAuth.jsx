@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from 'react-router'
+import { Navigate, Outlet, useLocation, useOutletContext } from 'react-router'
 import { FullScreenLoader } from '@/components/FullScreenLoader'
 import { useAuth } from './auth-context'
 
@@ -6,6 +6,8 @@ import { useAuth } from './auth-context'
 export function RequireAuth({ roles }) {
   const { status, user } = useAuth()
   const location = useLocation()
+  // Reenviar el contexto del layout padre (p. ej. el perfil que carga PanelLayout) a las rutas hijas.
+  const context = useOutletContext()
 
   // Mientras se resuelve el refresh inicial no redirigir todavía (docs §5.4).
   if (status === 'loading') return <FullScreenLoader />
@@ -13,7 +15,7 @@ export function RequireAuth({ roles }) {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
   if (roles && !roles.includes(user.rol)) return <Navigate to="/panel" replace />
-  return <Outlet />
+  return <Outlet context={context} />
 }
 
 /** Rutas solo para invitados (login, registro): si ya hay sesión, ir al panel. */

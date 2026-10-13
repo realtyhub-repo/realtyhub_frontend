@@ -13,4 +13,5 @@ export const ROLE_LABELS = {
   ADMINISTRADOR_CENTRAL: 'Administrador central',
   GERENTE_OFICINA: 'Gerente de oficina',
   AGENTE: 'Agente',
+  CLIENTE: 'Cliente',
 }
