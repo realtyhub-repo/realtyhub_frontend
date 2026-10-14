@@ -7,8 +7,14 @@ const DEFAULT_CENTER = [-77.042793, -12.046374]
 // OpenFreeMap: tiles vectoriales de OpenStreetMap sin token ni cuota. Positron es el estilo claro y neutro.
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 
-const markerBase =
-  'block size-4 cursor-pointer rounded-full border-2 border-floral-white bg-evergreen shadow-[0_1px_4px_rgb(10_59_53/0.45)] transition-[transform,background-color,box-shadow] duration-200 ease-out hover:scale-125 data-[active=true]:scale-150 data-[active=true]:bg-emerald-depths data-[active=true]:shadow-[0_0_0_6px_rgb(216_194_164/0.55)] data-[tipo=CENTRAL]:size-5'
+// MapLibre posiciona el elemento del marcador con `transform: translate(x, y)`. Si ese mismo elemento lleva
+// `scale-*` (Tailwind v4 usa la propiedad `scale`), el navegador escala también el desplazamiento y el punto
+// queda lejos de su ubicación y se mueve más rápido que el mapa al arrastrar. Por eso el exterior queda sin
+// estilo y el círculo visible (con su escala y transición) es un hijo que lee el estado vía `group-data-*`.
+const markerBase = 'group block cursor-pointer'
+
+const markerDot =
+  'block size-4 rounded-full border-2 border-floral-white bg-evergreen shadow-[0_1px_4px_rgb(10_59_53/0.45)] transition-[scale,background-color,box-shadow] duration-200 ease-out group-hover:scale-125 group-data-[active=true]:scale-150 group-data-[active=true]:bg-emerald-depths group-data-[active=true]:shadow-[0_0_0_6px_rgb(216_194_164/0.55)] group-data-[tipo=CENTRAL]:size-5'
 
 const pinClass =
   'block size-6 rounded-full border-[3px] border-floral-white bg-evergreen shadow-[0_0_0_8px_rgb(42_97_81/0.18),0_2px_6px_rgb(10_59_53/0.4)]'
@@ -116,6 +122,9 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
       el.dataset.tipo = o.tipo
       el.setAttribute('aria-label', o.nombre)
       el.title = o.nombre
+      const dot = document.createElement('span')
+      dot.className = markerDot
+      el.append(dot)
       el.addEventListener('click', (e) => {
         e.stopPropagation()
         callbacks.current.onSelect?.(o.id)
