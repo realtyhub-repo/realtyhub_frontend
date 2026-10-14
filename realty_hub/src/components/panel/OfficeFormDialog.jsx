@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { formatCoord } from '@/lib/format'
-import { MAPBOX_TOKEN } from '@/lib/mapbox'
 import { cn } from '@/lib/utils'
 
 /**
@@ -38,6 +37,7 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
   })
   const [coords, setCoords] = useState(office ? { latitud: office.latitud, longitud: office.longitud } : null)
   const [moved, setMoved] = useState(false)
+  const [mapUnavailable, setMapUnavailable] = useState(false)
   const [errors, setErrors] = useState(null)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -194,8 +194,8 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
 
         <div className="space-y-2">
           <Label>Ubicación</Label>
-          <OfficeMap pick={coords} onPick={pick} className="h-72 rounded-card border border-ash-grey/60 md:h-80" label="Selector de ubicación" />
-          {MAPBOX_TOKEN ? (
+          <OfficeMap pick={coords} onPick={pick} onUnavailable={() => setMapUnavailable(true)} className="h-72 rounded-card border border-ash-grey/60 md:h-80" label="Selector de ubicación" />
+          {!mapUnavailable ? (
             <p className={cn('flex items-center gap-2 text-small', errors?.coords ? 'text-error' : 'text-muted-foreground')}>
               <MousePointerClick className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
               {errors?.coords ??
@@ -227,7 +227,7 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
   )
 }
 
-/** Sin token de Mapbox: entrada manual de coordenadas para no bloquear la operación. */
+/** Si el mapa no carga: entrada manual de coordenadas para no bloquear la operación. */
 function ManualCoords({ coords, onChange, error }) {
   const set = (key) => (e) => {
     const n = e.target.value === '' ? NaN : Number(e.target.value)

@@ -98,7 +98,7 @@ Reglas del paso 3:
 ### 4.4 Ubicación
 
 - Las oficinas (y las propiedades, en Property Service) llevan `latitud` y `longitud`.
-- El frontend las obtiene con un mapa (Mapbox): el usuario hace clic y el mapa entrega las coordenadas, que se envían como dos números. El backend no geocodifica direcciones.
+- El frontend las obtiene con un mapa (MapLibre GL + tiles de OpenFreeMap, sin token): el usuario hace clic y el mapa entrega las coordenadas, que se envían como dos números. El backend no geocodifica direcciones.
 - Esas coordenadas se usan para asignar leads al agente de la oficina más cercana a la propiedad, así que deben ser correctas.
 
 ### 4.5 Los ids de agente

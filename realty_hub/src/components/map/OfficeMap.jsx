@@ -1,12 +1,11 @@
 import { MapPinOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { MAPBOX_TOKEN } from '@/lib/mapbox'
 import { cn } from '@/lib/utils'
-
 
 // Sin oficinas ni pin todavía: vista amplia de partida (los ejemplos del backend están en Lima).
 const DEFAULT_CENTER = [-77.042793, -12.046374]
-const MAP_STYLE = 'mapbox://styles/mapbox/light-v11'
+// OpenFreeMap: tiles vectoriales de OpenStreetMap sin token ni cuota. Positron es el estilo claro y neutro.
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 
 const markerBase =
   'block size-4 cursor-pointer rounded-full border-2 border-floral-white bg-evergreen shadow-[0_1px_4px_rgb(10_59_53/0.45)] transition-[transform,background-color,box-shadow] duration-200 ease-out hover:scale-125 data-[active=true]:scale-150 data-[active=true]:bg-emerald-depths data-[active=true]:shadow-[0_0_0_6px_rgb(216_194_164/0.55)] data-[tipo=CENTRAL]:size-5'
@@ -14,55 +13,63 @@ const markerBase =
 const pinClass =
   'block size-6 rounded-full border-[3px] border-floral-white bg-evergreen shadow-[0_0_0_8px_rgb(42_97_81/0.18),0_2px_6px_rgb(10_59_53/0.4)]'
 
-/** Carga mapbox-gl solo cuando hace falta un mapa: es pesado y casi ninguna pantalla lo usa. */
-let mapboxPromise
-function loadMapbox() {
-  mapboxPromise ??= Promise.all([import('mapbox-gl'), import('mapbox-gl/dist/mapbox-gl.css')]).then(([m]) => {
-    const mapboxgl = m.default
-    mapboxgl.accessToken = MAPBOX_TOKEN
-    return mapboxgl
+/** Carga maplibre-gl solo cuando hace falta un mapa: es pesado y casi ninguna pantalla lo usa. */
+let maplibrePromise
+function loadMaplibre() {
+  maplibrePromise ??= Promise.all([
+    import('maplibre-gl'),
+    // El worker vive en un archivo aparte que el bundler no copia solo: se emite como asset y se le indica la URL.
+    import('maplibre-gl/dist/maplibre-gl-worker.mjs?url'),
+    import('maplibre-gl/dist/maplibre-gl.css'),
+  ]).then(([m, worker]) => {
+    m.setWorkerUrl(worker.default)
+    return m
   })
-  return mapboxPromise
+  return maplibrePromise
 }
 
 /**
- * Mapa de oficinas (Mapbox, docs/user-service.md §4.4).
+ * Mapa de oficinas (MapLibre + OpenFreeMap, docs/user-service.md §4.4).
  * - `offices`: marcadores { id, nombre, latitud, longitud, tipo }. `activeId` resalta uno; `focusId`
  *   (por defecto el mismo) centra el mapa en él. Separarlos permite resaltar al pasar el cursor sin mover el mapa.
  * - `onSelect(id)`: clic en un marcador.
  * - `pick` + `onPick({ latitud, longitud })`: modo selector; un clic coloca el pin y entrega las coordenadas.
+ * - `onUnavailable()`: el mapa no pudo cargar (sin red, WebGL o servidor de tiles caído).
  */
-export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect, pick, onPick, zoom = 13, className, label = 'Mapa de oficinas' }) {
+export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect, pick, onPick, onUnavailable, zoom = 13, className, label = 'Mapa de oficinas' }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markersRef = useRef(new Map())
   const pinRef = useRef(null)
-  const callbacks = useRef({ onSelect, onPick })
+  const callbacks = useRef({ onSelect, onPick, onUnavailable })
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    callbacks.current = { onSelect, onPick }
+    callbacks.current = { onSelect, onPick, onUnavailable }
   })
+
+  useEffect(() => {
+    if (failed) callbacks.current.onUnavailable?.()
+  }, [failed])
 
   // Crear el mapa una sola vez.
   useEffect(() => {
-    if (!MAPBOX_TOKEN) return
     const markers = markersRef.current
     let cancelled = false
     let map
-    loadMapbox()
-      .then((mapboxgl) => {
+    let styleLoaded = false
+    loadMaplibre()
+      .then((maplibregl) => {
         if (cancelled || !containerRef.current) return
-        map = new mapboxgl.Map({
+        map = new maplibregl.Map({
           container: containerRef.current,
           style: MAP_STYLE,
           center: DEFAULT_CENTER,
           zoom: 11,
-          attributionControl: true,
           cooperativeGestures: !onPick,
         })
-        map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
         map.on('click', (e) => {
           callbacks.current.onPick?.({
             latitud: Number(e.lngLat.lat.toFixed(6)),
@@ -70,12 +77,16 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
           })
         })
         if (onPick) map.getCanvas().style.cursor = 'crosshair'
-        map.on('load', () => !cancelled && setReady(true))
-        map.on('error', (e) => {
-          // 401 del token o estilo inaccesible: mostrar el aviso en vez de un mapa gris.
-          if (e?.error?.status === 401 || e?.error?.status === 403) setFailed(true)
+        map.on('style.load', () => {
+          styleLoaded = true
         })
-        mapRef.current = { map, mapboxgl }
+        map.on('load', () => !cancelled && setReady(true))
+        map.on('error', () => {
+          // Sin estilo (servidor de tiles caído, sin red, worker que no carga) solo quedaría un recuadro vacío:
+          // mostrar el aviso. Un tile suelto que falla después no justifica tirar el mapa entero.
+          if (!styleLoaded && !cancelled) setFailed(true)
+        })
+        mapRef.current = { map, maplibregl }
       })
       .catch(() => setFailed(true))
     return () => {
@@ -92,7 +103,7 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
   // Sincronizar marcadores de oficinas y encuadrar.
   useEffect(() => {
     if (!ready) return
-    const { map, mapboxgl } = mapRef.current
+    const { map, maplibregl } = mapRef.current
     const markers = markersRef.current
     markers.forEach((m) => m.remove())
     markers.clear()
@@ -109,13 +120,13 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
         e.stopPropagation()
         callbacks.current.onSelect?.(o.id)
       })
-      markers.set(o.id, new mapboxgl.Marker({ element: el }).setLngLat([o.longitud, o.latitud]).addTo(map))
+      markers.set(o.id, new maplibregl.Marker({ element: el }).setLngLat([o.longitud, o.latitud]).addTo(map))
     }
 
     if (valid.length === 1) {
       map.jumpTo({ center: [valid[0].longitud, valid[0].latitud], zoom })
     } else if (valid.length > 1) {
-      const bounds = new mapboxgl.LngLatBounds()
+      const bounds = new maplibregl.LngLatBounds()
       valid.forEach((o) => bounds.extend([o.longitud, o.latitud]))
       map.fitBounds(bounds, { padding: 64, maxZoom: 14, duration: 0 })
     }
@@ -138,7 +149,7 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
   // Pin del modo selector.
   useEffect(() => {
     if (!ready || !onPick) return
-    const { map, mapboxgl } = mapRef.current
+    const { map, maplibregl } = mapRef.current
     if (!pick || !Number.isFinite(pick.latitud) || !Number.isFinite(pick.longitud)) {
       pinRef.current?.remove()
       pinRef.current = null
@@ -148,14 +159,14 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
     if (!pinRef.current) {
       const el = document.createElement('span')
       el.className = pinClass
-      pinRef.current = new mapboxgl.Marker({ element: el }).setLngLat(lngLat).addTo(map)
+      pinRef.current = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map)
       map.jumpTo({ center: lngLat, zoom: Math.max(map.getZoom(), 14) })
     } else {
       pinRef.current.setLngLat(lngLat)
     }
   }, [ready, pick, onPick])
 
-  if (!MAPBOX_TOKEN || failed) {
+  if (failed) {
     return (
       <div
         className={cn(
@@ -165,18 +176,18 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
         role="note"
       >
         <MapPinOff className="size-6 text-ash-grey" strokeWidth={1.5} aria-hidden="true" />
-        <p className="max-w-[36ch]">
-          {failed
-            ? 'No pudimos cargar el mapa. Revisa la conexión o el token de Mapbox.'
-            : 'El mapa no está disponible: falta configurar REALTYHUB_MAPBOX_TOKEN.'}
-        </p>
+        <p className="max-w-[36ch]">No se pudo cargar el mapa. Revisa la conexión e inténtalo de nuevo.</p>
       </div>
     )
   }
 
   return (
     <div className={cn('relative overflow-hidden bg-pale-oak/20', className)}>
-      <div ref={containerRef} className="absolute inset-0" role="region" aria-label={label} />
+      {/* El posicionamiento va en un envoltorio: maplibre-gl.css fija `position: relative` en el contenedor del mapa
+          y, al no estar en un @layer, le gana a las utilidades de Tailwind (quedaría con 0px de alto). */}
+      <div className="absolute inset-0">
+        <div ref={containerRef} className="size-full" role="region" aria-label={label} />
+      </div>
       {!ready && <div className="absolute inset-0 animate-pulse bg-pale-oak/25" aria-hidden="true" />}
     </div>
   )
