@@ -168,7 +168,7 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
         <p className="max-w-[36ch]">
           {failed
             ? 'No pudimos cargar el mapa. Revisa la conexión o el token de Mapbox.'
-            : 'El mapa no está disponible: falta configurar VITE_MAPBOX_TOKEN.'}
+            : 'El mapa no está disponible: falta configurar REALTYHUB_MAPBOX_TOKEN.'}
         </p>
       </div>
     )

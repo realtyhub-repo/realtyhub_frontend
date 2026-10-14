@@ -1,12 +1,12 @@
 import { GoogleLogin } from '@react-oauth/google'
 import { useEffect, useRef, useState } from 'react'
 
-export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+export const GOOGLE_CLIENT_ID = import.meta.env.REALTYHUB_GOOGLE_CLIENT_ID
 
 /**
  * Botón de Google Identity Services. Entrega el ID token (`credential`), que es lo que espera
  * POST /auth/google — no usar useGoogleLogin (devuelve un access token de Google, no sirve).
- * Si no hay VITE_GOOGLE_CLIENT_ID configurado, no se renderiza.
+ * Si no hay REALTYHUB_GOOGLE_CLIENT_ID configurado, no se renderiza.
  */
 export function GoogleSignIn({ onCredential, onError, disabled }) {
   const containerRef = useRef(null)

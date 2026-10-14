@@ -230,7 +230,7 @@ Cliente mínimo que implementa todas las reglas anteriores. Es JS plano para usa
 (`authClient.js`) dentro de la app React, p. ej. envuelto en un `AuthContext`/`AuthProvider`.
 
 ```js
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; // pedir la URL real
+const API_BASE_URL = import.meta.env.REALTYHUB_API_BASE_URL; // pedir la URL real
 
 let accessToken = null;        // SOLO en memoria
 let refreshPromise = null;     // single-flight para /auth/refresh

@@ -8,7 +8,7 @@
  *   refresh token ya rotado hace que el servidor cierre TODAS las sesiones del usuario.
  */
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+export const API_BASE_URL = (import.meta.env.REALTYHUB_API_BASE_URL ?? '').replace(/\/$/, '')
 
 const GENERIC_ERROR = 'Ocurrió un error inesperado. Intenta de nuevo.'
 const NETWORK_ERROR = 'No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.'

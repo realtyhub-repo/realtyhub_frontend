@@ -11,6 +11,8 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
+  // Solo las variables con este prefijo se exponen al cliente vía import.meta.env
+  envPrefix: 'REALTYHUB_',
   // El backend solo permite CORS desde http://localhost:5500 (docs/auth_service.md §2.4)
   server: { port: 5500, strictPort: true },
   preview: { port: 5500, strictPort: true },
