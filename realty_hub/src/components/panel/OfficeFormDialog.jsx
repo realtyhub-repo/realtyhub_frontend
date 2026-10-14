@@ -129,10 +129,10 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
       <div className="mt-6 grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className="space-y-5">
           <Field id="of-nombre" label="Nombre" error={errors?.nombre}>
-            {(p) => <Input {...p} value={form.nombre} onChange={update('nombre')} placeholder="Oficina Miraflores" />}
+            {(p) => <Input {...p} value={form.nombre} onChange={update('nombre')} placeholder="Oficina Centro" />}
           </Field>
           <Field id="of-region" label="Región o ciudad" error={errors?.region}>
-            {(p) => <Input {...p} value={form.region} onChange={update('region')} placeholder="Lima" />}
+            {(p) => <Input {...p} value={form.region} onChange={update('region')} placeholder="Montería" />}
           </Field>
 
           {editing ? (

@@ -230,7 +230,7 @@ export function PropertyForm({ initial, onSubmit, onCancel, submitLabel, savingL
       <Section title="Información" text="Lo primero que ve un interesado en el catálogo: título, precio y una descripción honesta.">
         <div className="space-y-5">
           <Field id="pf-titulo" label="Título" error={errors?.titulo} action={<Counter value={form.titulo} max={LIMITS.titulo} />}>
-            {(p) => <Input {...p} value={form.titulo} onChange={update('titulo')} maxLength={LIMITS.titulo} placeholder="Casa de dos niveles con patio en El Poblado" />}
+            {(p) => <Input {...p} value={form.titulo} onChange={update('titulo')} maxLength={LIMITS.titulo} placeholder="Casa de dos niveles con patio" />}
           </Field>
           <Field
             id="pf-precio"
@@ -249,7 +249,7 @@ export function PropertyForm({ initial, onSubmit, onCancel, submitLabel, savingL
           </Field>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field id="pf-ciudad" label="Ciudad" error={errors?.ciudad}>
-              {(p) => <Input {...p} value={form.ciudad} onChange={update('ciudad')} maxLength={LIMITS.ciudad} placeholder="Medellín" />}
+              {(p) => <Input {...p} value={form.ciudad} onChange={update('ciudad')} maxLength={LIMITS.ciudad} placeholder="Montería" />}
             </Field>
             <Field id="pf-direccion" label="Dirección" error={errors?.direccion}>
               {(p) => <Input {...p} value={form.direccion} onChange={update('direccion')} maxLength={LIMITS.direccion} placeholder="Calle 10 # 43-12" />}

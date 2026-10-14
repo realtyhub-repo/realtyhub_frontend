@@ -2,8 +2,8 @@ import { MapPinOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
-// Sin oficinas ni pin todavía: vista amplia de partida (los ejemplos del backend están en Lima).
-const DEFAULT_CENTER = [-77.042793, -12.046374]
+// Sin oficinas ni pin todavía: vista amplia de partida centrada en Montería. MapLibre usa [lng, lat].
+const DEFAULT_CENTER = [-75.881404, 8.747943]
 // OpenFreeMap: tiles vectoriales de OpenStreetMap sin token ni cuota. Positron es el estilo claro y neutro.
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 
