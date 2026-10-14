@@ -1,16 +1,15 @@
-import { MousePointerClick } from 'lucide-react'
 import { useState } from 'react'
 import { createOficina, updateOficina } from '@/api/userApi'
 import { Field } from '@/components/auth/Field'
-import { OfficeMap } from '@/components/map/OfficeMap'
+import { LocationPicker } from '@/components/map/LocationPicker'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { formatCoord } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { coordsError } from '@/lib/validation'
 
 /**
  * Crear (`POST /oficinas`) o editar (`PUT /oficinas/{id}`) una oficina.
@@ -37,7 +36,6 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
   })
   const [coords, setCoords] = useState(office ? { latitud: office.latitud, longitud: office.longitud } : null)
   const [moved, setMoved] = useState(false)
-  const [mapUnavailable, setMapUnavailable] = useState(false)
   const [errors, setErrors] = useState(null)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -58,11 +56,8 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
     if (!form.nombre.trim()) errs.nombre = 'Ingresa el nombre de la oficina'
     if (!form.region.trim()) errs.region = 'Ingresa la región o ciudad'
     if (!editing && form.tipo === 'SUCURSAL' && !form.oficinaCentralId) errs.oficinaCentralId = 'Elige la oficina central'
-    if (!coords || !Number.isFinite(coords.latitud) || !Number.isFinite(coords.longitud)) {
-      errs.coords = 'Marca la ubicación en el mapa'
-    } else if (Math.abs(coords.latitud) > 90 || Math.abs(coords.longitud) > 180) {
-      errs.coords = 'Las coordenadas están fuera de rango'
-    }
+    const coordsErr = coordsError(coords)
+    if (coordsErr) errs.coords = coordsErr
     return Object.keys(errs).length ? errs : null
   }
 
@@ -194,18 +189,7 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
 
         <div className="space-y-2">
           <Label>Ubicación</Label>
-          <OfficeMap pick={coords} onPick={pick} onUnavailable={() => setMapUnavailable(true)} className="h-72 rounded-card border border-ash-grey/60 md:h-80" label="Selector de ubicación" />
-          {!mapUnavailable ? (
-            <p className={cn('flex items-center gap-2 text-small', errors?.coords ? 'text-error' : 'text-muted-foreground')}>
-              <MousePointerClick className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-              {errors?.coords ??
-                (coords
-                  ? `${formatCoord(coords.latitud)}, ${formatCoord(coords.longitud)}`
-                  : 'Haz clic en el mapa para marcar la oficina.')}
-            </p>
-          ) : (
-            <ManualCoords coords={coords} onChange={pick} error={errors?.coords} />
-          )}
+          <LocationPicker coords={coords} onPick={pick} error={errors?.coords} hint="Haz clic en el mapa para marcar la oficina." />
         </div>
       </div>
 
@@ -224,23 +208,5 @@ function OfficeForm({ office, centrales, onSaved, onCancel }) {
         </Button>
       </DialogFooter>
     </form>
-  )
-}
-
-/** Si el mapa no carga: entrada manual de coordenadas para no bloquear la operación. */
-function ManualCoords({ coords, onChange, error }) {
-  const set = (key) => (e) => {
-    const n = e.target.value === '' ? NaN : Number(e.target.value)
-    onChange({ latitud: coords?.latitud ?? NaN, longitud: coords?.longitud ?? NaN, [key]: n })
-  }
-  const val = (n) => (Number.isFinite(n) ? n : '')
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <Input type="number" step="any" min={-90} max={90} aria-label="Latitud" placeholder="Latitud" value={val(coords?.latitud)} onChange={set('latitud')} aria-invalid={error ? true : undefined} />
-        <Input type="number" step="any" min={-180} max={180} aria-label="Longitud" placeholder="Longitud" value={val(coords?.longitud)} onChange={set('longitud')} aria-invalid={error ? true : undefined} />
-      </div>
-      {error && <p className="text-small text-error">{error}</p>}
-    </div>
   )
 }

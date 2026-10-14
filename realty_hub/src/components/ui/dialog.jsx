@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils'
 /*
  * Dialog de shadcn/ui re-temado (CLAUDE.md §4 y §6): overlay teñido de evergreen en vez de negro,
  * radio de modal (16px, flota sobre todo lo demás) y la sombra de marca.
- * `side="left"` lo convierte en panel lateral (menú del panel en móvil).
+ * `side="left"` lo convierte en panel lateral (menú del panel en móvil); `side="full"` ocupa la pantalla
+ * (visor de fotos).
  */
 
 const Dialog = DialogPrimitive.Root
@@ -26,6 +27,7 @@ const sides = {
   center:
     'left-1/2 top-1/2 w-[calc(100%-32px)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-modal border border-ash-grey/60 bg-floral-white p-6 shadow-brand animate-dialog-in sm:p-8',
   left: 'inset-y-0 left-0 h-full w-[min(85vw,300px)] animate-sheet-in',
+  full: 'inset-0 flex flex-col bg-evergreen text-floral-white animate-overlay-in',
 }
 
 function DialogContent({ className, children, side = 'center', hideClose = false, ...props }) {

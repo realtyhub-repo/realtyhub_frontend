@@ -1,0 +1,1550 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - Servicio de Propiedades",
+    "description": "Gestión de propiedades inmobiliarias y sus imágenes.\n\n**Autenticación:** el API Gateway valida al usuario y reenvía su identidad en los headers `X-User-Id` (UUID) y `X-User-Role` (rol). Los endpoints protegidos los requieren; si faltan o son inválidos se responde `401`.\n",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8083",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Imágenes de propiedades",
+      "description": "Subida de imágenes a R2 mediante URLs prefirmadas, confirmación, portada y eliminación"
+    },
+    {
+      "name": "Interno",
+      "description": "Endpoints para comunicación entre microservicios; no se exponen a través del API Gateway"
+    },
+    {
+      "name": "Propiedades",
+      "description": "Creación, consulta, actualización y cambio de estado de propiedades"
+    }
+  ],
+  "paths": {
+    "/propiedades/{id}": {
+      "get": {
+        "tags": [
+          "Propiedades"
+        ],
+        "summary": "Obtener detalle de una propiedad",
+        "description": "Devuelve la información completa de la propiedad, incluyendo imágenes y nombre del agente. Endpoint público; si se envían los headers de usuario se usan para registrar la vista.",
+        "operationId": "obtenerDetalles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la propiedad",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (opcional)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (opcional)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Rol del usuario autenticado",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle de la propiedad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropiedadDetalleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/PropiedadNoEncontrada"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Propiedades"
+        ],
+        "summary": "Actualizar propiedad",
+        "description": "Actualización parcial: solo se modifican los campos enviados. Permitido al agente dueño de la propiedad o al ADMINISTRADOR_CENTRAL.",
+        "operationId": "actualizar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la propiedad",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarPropiedadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Propiedad actualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropiedadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/PropiedadNoEncontrada"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/propiedades/{id}/estado": {
+      "put": {
+        "tags": [
+          "Propiedades"
+        ],
+        "summary": "Cambiar estado comercial",
+        "description": "Cambia manualmente el estado comercial de la propiedad. Permitido al agente dueño de la propiedad o al ADMINISTRADOR_CENTRAL.",
+        "operationId": "cambiarEstado",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la propiedad",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Estado actualizado"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/PropiedadNoEncontrada"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/imagenes/{imagenId}/portada": {
+      "put": {
+        "tags": [
+          "Imágenes de propiedades"
+        ],
+        "summary": "Marcar imagen como portada",
+        "description": "Marca la imagen como portada de su propiedad y desmarca la anterior. Permitido al agente dueño de la propiedad o al ADMINISTRADOR_CENTRAL.",
+        "operationId": "marcarPortada",
+        "parameters": [
+          {
+            "name": "imagenId",
+            "in": "path",
+            "description": "Id de la imagen",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Portada actualizada"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/ImagenNoEncontrada"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/propiedades": {
+      "get": {
+        "tags": [
+          "Propiedades"
+        ],
+        "summary": "Listar propiedades",
+        "description": "Lista paginada de propiedades. Endpoint público; todos los filtros son opcionales y combinables.",
+        "operationId": "listarPropiedades",
+        "parameters": [
+          {
+            "name": "tipoPropiedad",
+            "in": "query",
+            "description": "Tipo de propiedad",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de propiedad",
+              "enum": [
+                "CASA",
+                "APARTAMENTO"
+              ]
+            }
+          },
+          {
+            "name": "modalidad",
+            "in": "query",
+            "description": "Modalidad de negocio",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Modalidad de negocio de la propiedad",
+              "enum": [
+                "VENTA",
+                "ALQUILER"
+              ]
+            }
+          },
+          {
+            "name": "estadoComercial",
+            "in": "query",
+            "description": "Estado comercial",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado comercial de la propiedad",
+              "enum": [
+                "DISPONIBLE",
+                "RESERVADO",
+                "VENDIDO",
+                "ALQUILADO"
+              ]
+            }
+          },
+          {
+            "name": "ciudad",
+            "in": "query",
+            "description": "Ciudad",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Ciudad",
+              "example": "Medellín"
+            },
+            "example": "Medellín"
+          },
+          {
+            "name": "precioMin",
+            "in": "query",
+            "description": "Precio mínimo (inclusive)",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "description": "Precio mínimo (inclusive)",
+              "example": 100000000
+            },
+            "example": 100000000
+          },
+          {
+            "name": "precioMax",
+            "in": "query",
+            "description": "Precio máximo (inclusive)",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "description": "Precio máximo (inclusive)",
+              "example": 500000000
+            },
+            "example": 500000000
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Zero-based page index (0..N)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "The size of the page to be returned",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de propiedades",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedModelPropiedadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Propiedades"
+        ],
+        "summary": "Crear propiedad",
+        "description": "Registra una nueva propiedad en estado DISPONIBLE asignada al usuario autenticado. No disponible para el rol CLIENTE.",
+        "operationId": "crear",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearPropiedadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Propiedad creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropiedadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/propiedades/{id}/imagenes/upload-urls": {
+      "post": {
+        "tags": [
+          "Imágenes de propiedades"
+        ],
+        "summary": "Generar URLs de subida",
+        "description": "Paso 1 de la subida de imágenes. Genera una URL prefirmada por cada archivo; el cliente debe hacer `PUT` del archivo directamente a `uploadUrl` y luego confirmar las `key` con `POST /propiedades/{id}/imagenes/confirmar`. Formatos permitidos: jpg, jpeg, png, webp. Permitido al agente dueño de la propiedad o al ADMINISTRADOR_CENTRAL.",
+        "operationId": "generarUls",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la propiedad",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerarUrlsSubidaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "URLs de subida generadas, en el mismo orden que los archivos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UploadUrlResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida o uno o más archivos con formato no soportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "Validación": {
+                    "description": "Validación",
+                    "value": {
+                      "mensaje": "no debe estar vacío",
+                      "status": 400,
+                      "timestamp": "2026-01-15T10:30:00"
+                    }
+                  }
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                },
+                "examples": {
+                  "Formato no soportado": {
+                    "description": "Formato no soportado",
+                    "value": {
+                      "type": "about:blank",
+                      "title": "Formato de imagen no soportado",
+                      "status": 400,
+                      "detail": "Formato no soportado en 1 imagen(es). Formatos permitidos: jpeg, jpg, png, webp",
+                      "instance": "/propiedades/3fa85f64-5717-4562-b3fc-2c963f66afa6/imagenes/upload-urls",
+                      "imagenesInvalidas": [
+                        {
+                          "indice": 1,
+                          "nombre": "plano.gif"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/PropiedadNoEncontrada"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/propiedades/{id}/imagenes/confirmar": {
+      "post": {
+        "tags": [
+          "Imágenes de propiedades"
+        ],
+        "summary": "Confirmar imágenes subidas",
+        "description": "Paso 2 de la subida de imágenes. Registra las imágenes ya subidas a R2 usando las `key` devueltas en el paso 1. Como máximo una puede marcarse como portada; si se marca, reemplaza la portada actual. Permitido al agente dueño de la propiedad o al ADMINISTRADOR_CENTRAL.",
+        "operationId": "confirmarImagenes",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la propiedad",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConfirmarImagenRequest"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Imágenes registradas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImagenResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/PropiedadNoEncontrada"
+          },
+          "409": {
+            "description": "Una o más imágenes ya fueron registradas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "mensaje": "Una o más imágenes ya fueron registradas",
+                  "status": 409,
+                  "timestamp": "2026-01-15T10:30:00"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/internal/propiedades/{id}": {
+      "get": {
+        "tags": [
+          "Interno"
+        ],
+        "summary": "Obtener coordenadas y estado de una propiedad",
+        "description": "Usado por otros microservicios para conocer la ubicación y el estado comercial de una propiedad.",
+        "operationId": "obtenerCoordenadas",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la propiedad",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Coordenadas y estado de la propiedad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropiedadCoordenadasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/PropiedadNoEncontrada"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/imagenes/{imagenId}": {
+      "delete": {
+        "tags": [
+          "Imágenes de propiedades"
+        ],
+        "summary": "Eliminar imagen",
+        "description": "Elimina la imagen del almacenamiento (R2) y de la base de datos. Permitido al agente dueño de la propiedad o al ADMINISTRADOR_CENTRAL.",
+        "operationId": "eliminarImagen",
+        "parameters": [
+          {
+            "name": "imagenId",
+            "in": "path",
+            "description": "Id de la imagen",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el API Gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Imagen eliminada"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/ImagenNoEncontrada"
+          },
+          "500": {
+            "description": "No se pudo eliminar la imagen del almacenamiento o error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "mensaje": "No se pudo eliminar la imagen de R2",
+                  "status": 500,
+                  "timestamp": "2026-01-15T10:30:00"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Respuesta estándar de error del servicio",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje descriptivo del error",
+            "example": "Propiedad no encontrada"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código de estado HTTP",
+            "example": 404
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Momento en que ocurrió el error",
+            "example": "2026-01-15T10:30:00"
+          }
+        }
+      },
+      "ActualizarPropiedadRequest": {
+        "type": "object",
+        "description": "Datos para actualizar una propiedad. Todos los campos son opcionales; solo se modifican los enviados",
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "description": "Título de la propiedad",
+            "example": "Apartamento remodelado en El Poblado",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "descripcion": {
+            "type": "string",
+            "description": "Descripción detallada",
+            "example": "Apartamento de 3 habitaciones con vista a la ciudad",
+            "maxLength": 2000,
+            "minLength": 0
+          },
+          "precio": {
+            "type": "number",
+            "description": "Precio sin decimales",
+            "example": 450000000,
+            "exclusiveMinimum": 0
+          },
+          "direccion": {
+            "type": "string",
+            "description": "Dirección",
+            "example": "Cra 43A # 1-50",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "ciudad": {
+            "type": "string",
+            "description": "Ciudad",
+            "example": "Medellín",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Latitud en grados decimales",
+            "example": 6.2088,
+            "maximum": 90,
+            "minimum": -90
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Longitud en grados decimales",
+            "example": -75.5676,
+            "maximum": 180,
+            "minimum": -180
+          },
+          "caracteristicas": {
+            "type": "object",
+            "additionalProperties": {
+
+            },
+            "description": "Características libres de la propiedad (reemplazan las actuales)",
+            "example": {
+              "habitaciones": 3,
+              "banos": 2,
+              "area": 85,
+              "parqueadero": true
+            }
+          }
+        }
+      },
+      "PropiedadResponse": {
+        "type": "object",
+        "description": "Resumen de una propiedad",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la propiedad",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          "titulo": {
+            "type": "string",
+            "description": "Título",
+            "example": "Apartamento remodelado en El Poblado"
+          },
+          "precio": {
+            "type": "number",
+            "description": "Precio",
+            "example": 450000000
+          },
+          "ciudad": {
+            "type": "string",
+            "description": "Ciudad",
+            "example": "Medellín"
+          },
+          "tipoPropiedad": {
+            "type": "string",
+            "description": "Tipo de propiedad",
+            "enum": [
+              "CASA",
+              "APARTAMENTO"
+            ]
+          },
+          "modalidad": {
+            "type": "string",
+            "description": "Modalidad de negocio",
+            "enum": [
+              "VENTA",
+              "ALQUILER"
+            ]
+          },
+          "estadoComercial": {
+            "type": "string",
+            "description": "Estado comercial actual",
+            "enum": [
+              "DISPONIBLE",
+              "RESERVADO",
+              "VENDIDO",
+              "ALQUILADO"
+            ]
+          },
+          "urlPortada": {
+            "type": "string",
+            "description": "URL de la imagen de portada; null si no tiene",
+            "example": "https://cdn.realtyhub.com/propiedades/3fa85f64-5717-4562-b3fc-2c963f66afa6/portada.jpg"
+          }
+        }
+      },
+      "CambiarEstadoRequest": {
+        "type": "object",
+        "description": "Nuevo estado comercial de la propiedad",
+        "properties": {
+          "nuevoEstado": {
+            "type": "string",
+            "description": "Estado comercial a asignar",
+            "enum": [
+              "DISPONIBLE",
+              "RESERVADO",
+              "VENDIDO",
+              "ALQUILADO"
+            ],
+            "example": "RESERVADO"
+          }
+        },
+        "required": [
+          "nuevoEstado"
+        ]
+      },
+      "CrearPropiedadRequest": {
+        "type": "object",
+        "description": "Datos para crear una propiedad",
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "description": "Título de la propiedad",
+            "example": "Apartamento remodelado en El Poblado",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "descripcion": {
+            "type": "string",
+            "description": "Descripción detallada",
+            "example": "Apartamento de 3 habitaciones con vista a la ciudad",
+            "maxLength": 2000,
+            "minLength": 0
+          },
+          "precio": {
+            "type": "number",
+            "description": "Precio sin decimales",
+            "example": 450000000,
+            "exclusiveMinimum": 0
+          },
+          "direccion": {
+            "type": "string",
+            "description": "Dirección",
+            "example": "Cra 43A # 1-50",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "ciudad": {
+            "type": "string",
+            "description": "Ciudad",
+            "example": "Medellín",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Latitud en grados decimales",
+            "example": 6.2088,
+            "maximum": 90,
+            "minimum": -90
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Longitud en grados decimales",
+            "example": -75.5676,
+            "maximum": 180,
+            "minimum": -180
+          },
+          "tipoPropiedad": {
+            "type": "string",
+            "description": "Tipo de propiedad",
+            "enum": [
+              "CASA",
+              "APARTAMENTO"
+            ]
+          },
+          "modalidad": {
+            "type": "string",
+            "description": "Modalidad de negocio",
+            "enum": [
+              "VENTA",
+              "ALQUILER"
+            ]
+          },
+          "caracteristicas": {
+            "type": "object",
+            "additionalProperties": {
+
+            },
+            "description": "Características libres de la propiedad. Si se omite se guarda vacío",
+            "example": {
+              "habitaciones": 3,
+              "banos": 2,
+              "area": 85,
+              "parqueadero": true
+            }
+          }
+        },
+        "required": [
+          "ciudad",
+          "descripcion",
+          "direccion",
+          "latitud",
+          "longitud",
+          "modalidad",
+          "precio",
+          "tipoPropiedad",
+          "titulo"
+        ]
+      },
+      "GenerarUrlsSubidaRequest": {
+        "type": "object",
+        "description": "Archivos para los que se generarán URLs de subida",
+        "properties": {
+          "nombresArchivo": {
+            "type": "array",
+            "description": "Nombres de los archivos a subir. Extensiones permitidas: jpg, jpeg, png, webp",
+            "example": [
+              "sala.jpg",
+              "cocina.png"
+            ],
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "nombresArchivo"
+        ]
+      },
+      "ProblemDetail": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+
+            }
+          }
+        }
+      },
+      "UploadUrlResponse": {
+        "type": "object",
+        "description": "URL prefirmada para subir un archivo a R2",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Key del objeto en R2; se envía al confirmar la imagen",
+            "example": "propiedades/3fa85f64-5717-4562-b3fc-2c963f66afa6/8c1f0e2a-1b2c-4d5e-9f00-123456789abc.jpg",
+            "minLength": 1
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "URL prefirmada a la que se hace PUT del archivo. Expira a los 15 minutos",
+            "example": "https://cuenta.r2.cloudflarestorage.com/realtyhub/propiedades/...?X-Amz-Signature=...",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "key",
+          "uploadUrl"
+        ]
+      },
+      "ConfirmarImagenRequest": {
+        "type": "object",
+        "description": "Imagen ya subida a R2 que se desea registrar",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Key devuelta al generar la URL de subida",
+            "example": "propiedades/3fa85f64-5717-4562-b3fc-2c963f66afa6/8c1f0e2a-1b2c-4d5e-9f00-123456789abc.jpg",
+            "minLength": 1
+          },
+          "esPortada": {
+            "type": "boolean",
+            "description": "Indica si la imagen será la portada. Máximo una por solicitud",
+            "example": true
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "ImagenResponse": {
+        "type": "object",
+        "description": "Imagen de una propiedad",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la imagen",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          "url": {
+            "type": "string",
+            "description": "URL pública de la imagen",
+            "example": "https://cdn.realtyhub.com/propiedades/3fa85f64-5717-4562-b3fc-2c963f66afa6/foto.jpg"
+          },
+          "orden": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Posición de la imagen en la galería",
+            "example": 1
+          },
+          "esPortada": {
+            "type": "boolean",
+            "description": "Indica si es la portada de la propiedad",
+            "example": true
+          }
+        }
+      },
+      "PageMetadata": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PagedModelPropiedadResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropiedadResponse"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          }
+        }
+      },
+      "PropiedadDetalleResponse": {
+        "type": "object",
+        "description": "Detalle completo de una propiedad",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la propiedad",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          "titulo": {
+            "type": "string",
+            "description": "Título",
+            "example": "Apartamento remodelado en El Poblado"
+          },
+          "descripcion": {
+            "type": "string",
+            "description": "Descripción detallada",
+            "example": "Apartamento de 3 habitaciones con vista a la ciudad"
+          },
+          "precio": {
+            "type": "number",
+            "description": "Precio",
+            "example": 450000000
+          },
+          "direccion": {
+            "type": "string",
+            "description": "Dirección",
+            "example": "Cra 43A # 1-50"
+          },
+          "ciudad": {
+            "type": "string",
+            "description": "Ciudad",
+            "example": "Medellín"
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Latitud en grados decimales",
+            "example": 6.2088
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Longitud en grados decimales",
+            "example": -75.5676
+          },
+          "tipoPropiedad": {
+            "type": "string",
+            "description": "Tipo de propiedad",
+            "enum": [
+              "CASA",
+              "APARTAMENTO"
+            ]
+          },
+          "modalidad": {
+            "type": "string",
+            "description": "Modalidad de negocio",
+            "enum": [
+              "VENTA",
+              "ALQUILER"
+            ]
+          },
+          "estadoComercial": {
+            "type": "string",
+            "description": "Estado comercial actual",
+            "enum": [
+              "DISPONIBLE",
+              "RESERVADO",
+              "VENDIDO",
+              "ALQUILADO"
+            ]
+          },
+          "caracteristicas": {
+            "type": "object",
+            "additionalProperties": {
+
+            },
+            "description": "Características libres de la propiedad",
+            "example": {
+              "habitaciones": 3,
+              "banos": 2,
+              "area": 85,
+              "parqueadero": true
+            }
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del agente dueño de la propiedad",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "nombreAgente": {
+            "type": "string",
+            "description": "Nombre del agente",
+            "example": "Laura Gómez"
+          },
+          "imagenes": {
+            "type": "array",
+            "description": "Imágenes ordenadas por posición",
+            "items": {
+              "$ref": "#/components/schemas/ImagenResponse"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha de creación",
+            "example": "2026-01-15T10:30:00"
+          }
+        }
+      },
+      "PropiedadCoordenadasResponse": {
+        "type": "object",
+        "description": "Ubicación y estado comercial de una propiedad",
+        "properties": {
+          "estadoComercial": {
+            "type": "string",
+            "description": "Estado comercial actual",
+            "enum": [
+              "DISPONIBLE",
+              "RESERVADO",
+              "VENDIDO",
+              "ALQUILADO"
+            ]
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Latitud en grados decimales",
+            "example": 6.2088
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Longitud en grados decimales",
+            "example": -75.5676
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Solicitud inválida: errores de validación, JSON mal formado o parámetros con formato incorrecto",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "mensaje": "titulo: no debe estar vacío",
+              "status": 400,
+              "timestamp": "2026-01-15T10:30:00"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Faltan los headers de autenticación o tienen un formato inválido",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "mensaje": "Faltan headers de autenticación",
+              "status": 401,
+              "timestamp": "2026-01-15T10:30:00"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "El usuario no tiene permisos para realizar la operación",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "mensaje": "No tienes permiso sobre esta propiedad",
+              "status": 403,
+              "timestamp": "2026-01-15T10:30:00"
+            }
+          }
+        }
+      },
+      "PropiedadNoEncontrada": {
+        "description": "No existe una propiedad con el id indicado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "mensaje": "Propiedad no encontrada",
+              "status": 404,
+              "timestamp": "2026-01-15T10:30:00"
+            }
+          }
+        }
+      },
+      "ImagenNoEncontrada": {
+        "description": "No existe una imagen con el id indicado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "mensaje": "Imagen no encontrada",
+              "status": 404,
+              "timestamp": "2026-01-15T10:30:00"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Error inesperado en el servidor",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "mensaje": "Ocurrió un error inesperado",
+              "status": 500,
+              "timestamp": "2026-01-15T10:30:00"
+            }
+          }
+        }
+      }
+    }
+  }
+}

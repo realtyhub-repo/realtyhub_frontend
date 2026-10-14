@@ -4,6 +4,7 @@ import {
   Contact,
   House,
   LayoutGrid,
+  LayoutList,
   LogOut,
   MapPinned,
   Menu,
@@ -24,6 +25,7 @@ import { cn } from '@/lib/utils'
 
 const ADMIN = 'ADMINISTRADOR_CENTRAL'
 const GERENTE = 'GERENTE_OFICINA'
+const AGENTE = 'AGENTE'
 
 /** Navegación por rol. Ocultar entradas es solo UX: el backend vuelve a validar (docs/user-service.md §1). */
 const NAV_GROUPS = [
@@ -43,13 +45,14 @@ const NAV_GROUPS = [
       { to: '/panel/agentes', label: 'Mi equipo', icon: UsersRound, roles: [GERENTE] },
     ],
   },
+  {
+    title: 'Inventario',
+    items: [{ to: '/panel/propiedades', label: 'Propiedades', icon: House, roles: [ADMIN, GERENTE, AGENTE] }],
+  },
 ]
 
 // Módulos aún no disponibles en el frontend: se muestran deshabilitados para anticipar la navegación.
-const UPCOMING = [
-  { label: 'Propiedades', icon: House },
-  { label: 'Clientes', icon: Contact },
-]
+const UPCOMING = [{ label: 'Clientes', icon: Contact }]
 
 // Título de cada ruta para el breadcrumb de la barra superior.
 const ROUTE_TITLES = [
@@ -58,6 +61,9 @@ const ROUTE_TITLES = [
   ['/panel/usuarios', 'Usuarios'],
   ['/panel/oficinas', 'Oficinas'],
   ['/panel/agentes', 'Agentes'],
+  ['/panel/propiedades', 'Propiedades'],
+  ['/panel/propiedades/nueva', 'Publicar propiedad'],
+  ['/panel/propiedades/:id', 'Propiedad'],
 ]
 
 const navItem =
@@ -220,6 +226,16 @@ function Sidebar({ groups, displayName, roleLabel, photo, onNavigate }) {
         </NavGroup>
 
         <NavGroup title="Sitio público">
+          <li>
+            <Link
+              to="/propiedades"
+              onClick={onNavigate}
+              className={cn(navItem, 'text-floral-white/70 hover:bg-floral-white/5 hover:text-floral-white')}
+            >
+              <LayoutList className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+              Catálogo de propiedades
+            </Link>
+          </li>
           <li>
             <Link
               to="/oficinas"

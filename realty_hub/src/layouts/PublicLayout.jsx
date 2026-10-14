@@ -21,8 +21,11 @@ export function PublicLayout() {
     <div className="flex min-h-svh flex-col bg-floral-white">
       <header className="sticky top-0 z-30 border-b border-ash-grey/40 bg-floral-white/90 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-8 px-4 sm:px-8">
-          <Wordmark to="/oficinas" className="text-evergreen" />
+          <Wordmark to="/propiedades" className="text-evergreen" />
           <nav aria-label="Principal" className="hidden items-center gap-6 sm:flex">
+            <NavLink to="/propiedades" className={navLink}>
+              Propiedades
+            </NavLink>
             <NavLink to="/oficinas" className={navLink}>
               Oficinas
             </NavLink>
@@ -48,12 +51,15 @@ export function PublicLayout() {
       <footer className="bg-evergreen text-floral-white">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-8 md:grid-cols-[minmax(0,1fr)_auto]">
           <div className="space-y-3">
-            <Wordmark to="/oficinas" className="text-floral-white" />
+            <Wordmark to="/propiedades" className="text-floral-white" />
             <p className="max-w-[44ch] text-small text-floral-white/70">
               Oficinas y agentes con conocimiento de cada zona, para acompañarte en la compra o el alquiler de tu próximo hogar.
             </p>
           </div>
           <nav aria-label="Pie de página" className="flex gap-8 text-small text-floral-white/70">
+            <Link to="/propiedades" className="transition-colors duration-150 hover:text-floral-white">
+              Propiedades
+            </Link>
             <Link to="/oficinas" className="transition-colors duration-150 hover:text-floral-white">
               Oficinas
             </Link>

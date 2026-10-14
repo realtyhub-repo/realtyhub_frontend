@@ -10,7 +10,8 @@ const MODULES = [
   { icon: Building, title: 'Oficinas', text: 'Centrales, sucursales, ubicación y gerentes.', to: '/panel/oficinas', roles: ['ADMINISTRADOR_CENTRAL'] },
   { icon: UsersRound, title: 'Agentes', text: 'Registra agentes y su zona de especialidad.', to: '/panel/agentes', roles: ['ADMINISTRADOR_CENTRAL'] },
   { icon: UsersRound, title: 'Mi equipo', text: 'Agentes de la oficina que diriges.', to: '/panel/agentes', roles: ['GERENTE_OFICINA'] },
-  { icon: House, title: 'Propiedades', text: 'Publica, edita y sigue el estado de cada inmueble.' },
+  { icon: House, title: 'Propiedades', text: 'Publica, edita y sigue el estado de cada inmueble.', to: '/panel/propiedades', roles: ['ADMINISTRADOR_CENTRAL', 'GERENTE_OFICINA', 'AGENTE'] },
+  { icon: House, title: 'Catálogo de propiedades', text: 'Explora las casas y apartamentos disponibles.', to: '/propiedades', roles: ['CLIENTE'] },
   { icon: Contact, title: 'Clientes', text: 'Registra interesados y avanza cada oportunidad.' },
 ]
 
