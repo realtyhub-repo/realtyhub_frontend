@@ -89,7 +89,7 @@ export default function OfficeDetailPage() {
             <ul className="mt-6 grid gap-x-6 gap-y-8 sm:grid-cols-2">
               {agentes.map((a) => (
                 <li key={a.id}>
-                  <Link to={`/agentes/${a.usuarioId}`} className="group flex items-center gap-4 focus-visible:outline-none">
+                  <Link to={`/agentes/${a.id}`} className="group flex items-center gap-4 focus-visible:outline-none">
                     <span
                       className="flex size-16 shrink-0 items-center justify-center rounded-full bg-pale-oak/60 font-display text-subtitle font-semibold text-evergreen transition-colors duration-200 group-hover:bg-evergreen group-hover:text-floral-white group-focus-visible:ring-2 group-focus-visible:ring-ring"
                       aria-hidden="true"

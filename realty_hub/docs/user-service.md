@@ -104,6 +104,7 @@ Reglas del paso 3:
 ### 4.5 Los ids de agente
 
 - Un agente tiene dos ids: el `id` de su registro de agente y el `usuarioId` de su cuenta.
+- `GET /agentes/{id}` y `PUT /agentes/{id}` reciben el `id` del registro de agente. La ficha pública (`/agentes/:id`) usa ese mismo id.
 - **En el resto del sistema (propiedades, leads, visitas) `agenteId` siempre es el `usuarioId`**, no el `id` del registro de agente.
   Para comparar "¿esta propiedad es mía?" se compara contra el id del usuario autenticado.
 

@@ -118,12 +118,11 @@ export function quitarGerente(id) {
 /* ------------------------------------------------------------------ */
 
 /**
- * GET /agentes/{usuarioId} → AgenteResponse (público).
+ * GET /agentes/{id} → AgenteResponse (público), con `id` = id del registro de agente (no el `usuarioId`).
  * AgenteResponse { id, usuarioId, nombreUsuario, oficinaId, nombreOficina, zonaEspecialidad }.
- * Ojo: este GET recibe el `usuarioId`; el PUT recibe el `id` del registro de agente.
  */
-export function getAgente(usuarioId, { signal } = {}) {
-  return request(`/agentes/${enc(usuarioId)}`, { method: 'GET', signal })
+export function getAgente(id, { signal } = {}) {
+  return request(`/agentes/${enc(id)}`, { method: 'GET', signal })
 }
 
 /**

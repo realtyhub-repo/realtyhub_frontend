@@ -9,7 +9,7 @@ import { useAsync } from '@/hooks/useAsync'
 import { initials } from '@/lib/format'
 
 /**
- * Ficha pública de un agente (`GET /agentes/{usuarioId}`). Solo nombre, oficina y zona:
+ * Ficha pública de un agente (`GET /agentes/{id}`, id del registro de agente). Solo nombre, oficina y zona:
  * el contacto no es público (docs/user-service.md §4.6).
  */
 export default function AgentProfilePage() {

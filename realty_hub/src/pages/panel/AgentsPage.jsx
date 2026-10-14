@@ -168,7 +168,7 @@ function AgentList({ office, oficinas, isAdmin, creating, onCreatingChange, pres
                 <p className="truncate text-small text-muted-foreground">{a.zonaEspecialidad || 'Sin zona de especialidad'}</p>
               </div>
               <Link
-                to={`/agentes/${a.usuarioId}`}
+                to={`/agentes/${a.id}`}
                 target="_blank"
                 rel="noopener"
                 className="hidden items-center gap-1.5 text-small text-muted-foreground transition-colors duration-150 hover:text-evergreen sm:inline-flex"

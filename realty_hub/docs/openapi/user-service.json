@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RealtyHub - User Service",
-    "description": "Servicio de usuarios, oficinas y agentes de RealtyHub.\n\n**Autenticación (vía API Gateway)**\nEl cliente (frontend) envía `Authorization: Bearer \u003CaccessToken\u003E` al gateway. El gateway valida el JWT\ny reenvía la petición a este servicio con dos headers:\n- `X-User-Id`: claim `sub` del token (UUID del usuario).\n- `X-User-Role`: claim `rol` del token (`ADMINISTRADOR_CENTRAL`, `GERENTE_OFICINA`, `AGENTE` o `CLIENTE`).\n\nEl frontend **nunca** envía esos headers: el gateway los elimina si vienen del cliente y los vuelve a\ngenerar a partir del token. Solo se envían a mano al probar este servicio directamente (sin gateway),\npor ejemplo desde este Swagger UI. Si faltan o son inválidos, el servicio responde `401`.\n\n**Rutas expuestas por el gateway**: `/users/**`, `/oficinas/**`, `/agentes/**`.\nSon públicas (no requieren token): `GET /oficinas/**` y `GET /agentes/{id}`. El resto exige token.\nLas rutas `/internal/**` **no** pasan por el gateway: son solo para comunicación entre microservicios.\n\n**Errores**: la mayoría de errores de negocio tienen el cuerpo `ErrorResponse`\n`{ \"mensaje\": string, \"status\": number, \"timestamp\": string }`. Algunos (usuario no encontrado,\nparámetros mal formados, JSON inválido) usan el cuerpo por defecto de Spring Boot\n`{ \"timestamp\", \"status\", \"error\", \"path\" }`. Decidir siempre por el código HTTP.\n",
+    "description": "Servicio de usuarios, oficinas y agentes de RealtyHub.\n\n**Autenticación (vía API Gateway)**\nEl cliente (frontend) envía `Authorization: Bearer <accessToken>` al gateway. El gateway valida el JWT\ny reenvía la petición a este servicio con dos headers:\n- `X-User-Id`: claim `sub` del token (UUID del usuario).\n- `X-User-Role`: claim `rol` del token (`ADMINISTRADOR_CENTRAL`, `GERENTE_OFICINA`, `AGENTE` o `CLIENTE`).\n\nEl frontend **nunca** envía esos headers: el gateway los elimina si vienen del cliente y los vuelve a\ngenerar a partir del token. Solo se envían a mano al probar este servicio directamente (sin gateway),\npor ejemplo desde este Swagger UI. Si faltan o son inválidos, el servicio responde `401`.\n\n**Rutas expuestas por el gateway**: `/users/**`, `/oficinas/**`, `/agentes/**`.\nSon públicas (no requieren token): `GET /oficinas/**` y `GET /agentes/{id}`. El resto exige token.\nLas rutas `/internal/**` **no** pasan por el gateway: son solo para comunicación entre microservicios.\n\n**Errores**: la mayoría de errores de negocio tienen el cuerpo `ErrorResponse`\n`{ \"mensaje\": string, \"status\": number, \"timestamp\": string }`. Algunos (usuario no encontrado,\nparámetros mal formados, JSON inválido) usan el cuerpo por defecto de Spring Boot\n`{ \"timestamp\", \"status\", \"error\", \"path\" }`. Decidir siempre por el código HTTP.\n",
     "version": "1.0"
   },
   "servers": [
@@ -764,14 +764,14 @@
         "tags": [
           "Agentes"
         ],
-        "summary": "Obtener agente por id de usuario",
-        "description": "Público. **Importante:** `{id}` es el **id del usuario** del agente (`usuarioId`), no el `id` del registro de agente. Útil para mostrar la ficha del agente a partir del `sub` del JWT o del `agenteId` que guardan otros servicios.",
+        "summary": "Obtener agente por id",
+        "description": "Público. `{id}` es el `id` del registro de agente (campo `id` de `AgenteResponse`), no el id del usuario.",
         "operationId": "buscarAgentePorId",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "Id del USUARIO del agente (usuarioId), no el id del registro agente",
+            "description": "Id del registro de agente (no el usuarioId)",
             "required": true,
             "schema": {
               "type": "string",
