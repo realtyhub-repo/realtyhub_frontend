@@ -159,7 +159,8 @@ export function OfficeMap({ offices = [], activeId, focusId = activeId, onSelect
   useEffect(() => {
     if (!ready || !onPick) return
     const { map, maplibregl } = mapRef.current
-    if (!pick || !Number.isFinite(pick.latitud) || !Number.isFinite(pick.longitud)) {
+    // Con coordenadas escritas a mano puede llegar una latitud fuera de rango, que MapLibre rechaza.
+    if (!pick || !Number.isFinite(pick.latitud) || !Number.isFinite(pick.longitud) || Math.abs(pick.latitud) > 90) {
       pinRef.current?.remove()
       pinRef.current = null
       return

@@ -76,6 +76,8 @@ export default function App() {
             </Route>
           </Route>
 
+          {/* Temporal: el catálogo público de propiedades es la raíz */}
+          <Route path="/" element={<Navigate to="/propiedades" replace />} />
           <Route path="*" element={<Navigate to="/panel" replace />} />
         </Routes>
       </Providers>
