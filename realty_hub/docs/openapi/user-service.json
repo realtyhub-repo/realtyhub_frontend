@@ -2129,13 +2129,13 @@
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "Id del registro de agente. Es el que se usa en PUT /agentes/{id}",
+            "description": "Id del registro de agente (agente_id). Es el que se usa en GET y PUT /agentes/{id}",
             "example": "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d"
           },
           "usuarioId": {
             "type": "string",
             "format": "uuid",
-            "description": "Id del usuario del agente. Es el que se usa en GET /agentes/{id}",
+            "description": "Id del usuario del agente (usuario_id). No sirve para GET /agentes/{id}",
             "example": "7b2f3c1e-5a4d-4c2b-9e8f-1a2b3c4d5e6f"
           },
           "nombreUsuario": {
