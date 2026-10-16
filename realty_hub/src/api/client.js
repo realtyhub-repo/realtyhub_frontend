@@ -13,11 +13,15 @@ export const API_BASE_URL = (import.meta.env.REALTYHUB_API_BASE_URL ?? '').repla
 const GENERIC_ERROR = 'Ocurrió un error inesperado. Intenta de nuevo.'
 const NETWORK_ERROR = 'No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.'
 
-/** Error de API con el formato estándar del backend: { mensaje, status, timestamp }. */
+/**
+ * Error de API con el formato estándar del backend: { codigo?, mensaje, status, timestamp }.
+ * `codigo` lo envían Lead y Visitas ("AGENTE_OCUPADO", "PROPIEDAD_OCUPADA"…) para reaccionar sin leer el texto.
+ */
 export class ApiError extends Error {
-  constructor({ mensaje, status, timestamp } = {}) {
+  constructor({ codigo, mensaje, status, timestamp } = {}) {
     super(mensaje || GENERIC_ERROR)
     this.name = 'ApiError'
+    this.codigo = codigo ?? null
     this.mensaje = this.message
     this.status = status ?? 0
     this.timestamp = timestamp ?? null

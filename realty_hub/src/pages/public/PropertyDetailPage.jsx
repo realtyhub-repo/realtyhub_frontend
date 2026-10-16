@@ -1,6 +1,6 @@
-import { Bath, BedDouble, Car, Check, ChevronLeft, Link2, MapPin, PencilLine, Ruler } from 'lucide-react'
+import { Bath, BedDouble, CalendarPlus, Car, Check, ChevronLeft, Link2, MapPin, PencilLine, Ruler } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import { getPropiedad } from '@/api/propertyApi'
 import { useAuth } from '@/auth/auth-context'
 import { OfficeMap } from '@/components/map/OfficeMap'
@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/property/StatusBadge'
 import { PublicError } from '@/components/public/PublicStates'
 import { Avatar } from '@/components/ui/avatar'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { ScheduleVisitDialog } from '@/components/visit/ScheduleVisitDialog'
 import { useAsync } from '@/hooks/useAsync'
 import { formatDate } from '@/lib/format'
 import {
@@ -105,6 +106,7 @@ export default function PropertyDetailPage() {
             </div>
 
             <div className="space-y-2">
+              <ScheduleVisitButton propiedad={p} />
               {canManage(p, user) && (
                 <Link to={`/panel/propiedades/${p.id}`} className={buttonVariants({ className: 'w-full' })}>
                   <PencilLine strokeWidth={1.75} aria-hidden="true" />
@@ -192,6 +194,42 @@ function Facts({ facts }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+/**
+ * Crear un lead agendando una visita (`POST /leads`, solo CLIENTE; docs/lead-service.md).
+ * Sin sesión lleva al login y vuelve aquí; los roles internos no lo ven porque el backend les respondería 403.
+ */
+function ScheduleVisitButton({ propiedad }) {
+  const { status, user } = useAuth()
+  const location = useLocation()
+  const [open, setOpen] = useState(false)
+
+  if (propiedad.estadoComercial !== 'DISPONIBLE') {
+    return <p className="pb-2 text-small text-muted-foreground">Esta propiedad no recibe visitas por ahora.</p>
+  }
+  if (status === 'unauthenticated') {
+    return (
+      <>
+        <Link to="/login" state={{ from: location }} className={buttonVariants({ className: 'w-full' })}>
+          <CalendarPlus strokeWidth={1.75} aria-hidden="true" />
+          Agendar visita
+        </Link>
+        <p className="pb-2 text-meta text-muted-foreground">Ingresa con tu cuenta de cliente para elegir el día y la hora.</p>
+      </>
+    )
+  }
+  if (user?.rol !== 'CLIENTE') return null
+
+  return (
+    <>
+      <Button className="w-full" onClick={() => setOpen(true)}>
+        <CalendarPlus strokeWidth={1.75} aria-hidden="true" />
+        Agendar visita
+      </Button>
+      <ScheduleVisitDialog open={open} onOpenChange={setOpen} propiedad={propiedad} />
+    </>
   )
 }
 

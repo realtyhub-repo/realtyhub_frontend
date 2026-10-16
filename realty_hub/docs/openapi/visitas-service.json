@@ -1,0 +1,453 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - Visitas Service",
+    "description": "Agenda de visitas: reservas, calendario de ocupación de propiedades y cambio de estado.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8085",
+      "description": "Generated server url"
+    }
+  ],
+  "security": [
+    {
+      "X-User-Id": [],
+      "X-User-Role": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Visitas",
+      "description": "Agenda de visitas a propiedades"
+    },
+    {
+      "name": "Visitas (interno)",
+      "description": "Solo servicio a servicio (Lead). No se expone por el Gateway."
+    }
+  ],
+  "paths": {
+    "/internal/visitas/reservar": {
+      "post": {
+        "tags": [
+          "Visitas (interno)"
+        ],
+        "summary": "Reservar una visita",
+        "description": "Crea la visita (duración fija). Falla con AGENTE_OCUPADO, PROPIEDAD_OCUPADA, VISITA_YA_EXISTE, FECHA_INVALIDA o FUERA_DE_HORARIO.",
+        "operationId": "reservar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservarVisitaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Visita reservada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Fecha inválida o fuera de horario",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Agente/propiedad ocupados o visita ya existente",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/visitas/{id}/estado": {
+      "patch": {
+        "tags": [
+          "Visitas"
+        ],
+        "summary": "Cambiar el estado de una visita",
+        "description": "Solo desde PROGRAMADA hacia REALIZADA o CANCELADA. REALIZADA solo si la hora de inicio ya pasó. El cliente puede cancelar su propia visita.",
+        "operationId": "cambiarEstado",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoVisitaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "403": {
+            "description": "Sin permiso sobre la visita",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Visita no encontrada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Transición de estado inválida",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/visitas/propiedad/{propiedadId}/ocupacion": {
+      "get": {
+        "tags": [
+          "Visitas"
+        ],
+        "summary": "Ocupación de una propiedad en una fecha",
+        "description": "Franjas ya reservadas (no canceladas) de la propiedad ese día. Sirve para pintar el calendario.",
+        "operationId": "obtenerOcupacion",
+        "parameters": [
+          {
+            "name": "propiedadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "fecha",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OcupacionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/visitas/mis-visitas": {
+      "get": {
+        "tags": [
+          "Visitas"
+        ],
+        "summary": "Listar mis visitas",
+        "description": "CLIENTE: sus visitas. Otros roles: las visitas donde son el agente. Por defecto desde hoy hasta 30 días.",
+        "operationId": "listarMisVisitas",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PROGRAMADA",
+                "REALIZADA",
+                "CANCELADA"
+              ]
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VisitaResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/visitas/agentes-ocupados": {
+      "get": {
+        "tags": [
+          "Visitas (interno)"
+        ],
+        "summary": "Agentes ocupados a una hora",
+        "description": "Devuelve cuáles de los agentes indicados tienen una visita que se cruza con la fecha/hora.",
+        "operationId": "agentesOcupados",
+        "parameters": [
+          {
+            "name": "agenteIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "fechaHora",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentesOcupadosResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/visitas/lead/{leadId}": {
+      "delete": {
+        "tags": [
+          "Visitas (interno)"
+        ],
+        "summary": "Cancelar la visita pendiente de un lead",
+        "description": "Compensación de Lead. Idempotente: si no hay visita programada responde igual 204.",
+        "operationId": "cancelarPorLead",
+        "parameters": [
+          {
+            "name": "leadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ReservarVisitaRequest": {
+        "type": "object",
+        "properties": {
+          "leadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "agenteId",
+          "clienteId",
+          "fechaHora",
+          "leadId",
+          "propiedadId"
+        ]
+      },
+      "VisitaResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaHoraFin": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estadoVisita": {
+            "type": "string",
+            "enum": [
+              "PROGRAMADA",
+              "REALIZADA",
+              "CANCELADA"
+            ]
+          }
+        }
+      },
+      "CambiarEstadoVisitaRequest": {
+        "type": "object",
+        "properties": {
+          "nuevoEstado": {
+            "type": "string",
+            "enum": [
+              "PROGRAMADA",
+              "REALIZADA",
+              "CANCELADA"
+            ]
+          }
+        },
+        "required": [
+          "nuevoEstado"
+        ]
+      },
+      "OcupacionResponse": {
+        "type": "object",
+        "properties": {
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaHoraFin": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AgentesOcupadosResponse": {
+        "type": "object",
+        "properties": {
+          "agentesIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "X-User-Id": {
+        "type": "apiKey",
+        "description": "UUID del usuario autenticado (lo inyecta el Gateway tras validar el JWT)",
+        "name": "X-User-Id",
+        "in": "header"
+      },
+      "X-User-Role": {
+        "type": "apiKey",
+        "description": "ADMINISTRADOR_CENTRAL | GERENTE_OFICINA | AGENTE | CLIENTE",
+        "name": "X-User-Role",
+        "in": "header"
+      }
+    }
+  }
+}

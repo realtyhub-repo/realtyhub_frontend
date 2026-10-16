@@ -13,12 +13,15 @@ import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import VerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 import PanelHomePage from '@/pages/PanelHomePage'
 import AgentsPage from '@/pages/panel/AgentsPage'
+import LeadDetailPage from '@/pages/panel/LeadDetailPage'
+import LeadsPage from '@/pages/panel/LeadsPage'
 import OfficesPage from '@/pages/panel/OfficesPage'
 import PropertiesPage from '@/pages/panel/PropertiesPage'
 import PropertyCreatePage from '@/pages/panel/PropertyCreatePage'
 import PropertyManagePage from '@/pages/panel/PropertyManagePage'
 import ProfilePage from '@/pages/panel/ProfilePage'
 import UsersPage from '@/pages/panel/UsersPage'
+import VisitsPage from '@/pages/panel/VisitsPage'
 import AgentProfilePage from '@/pages/public/AgentProfilePage'
 import OfficeDetailPage from '@/pages/public/OfficeDetailPage'
 import OfficesDirectoryPage from '@/pages/public/OfficesDirectoryPage'
@@ -60,6 +63,8 @@ export default function App() {
             <Route path="/panel" element={<PanelLayout />}>
               <Route index element={<PanelHomePage />} />
               <Route path="perfil" element={<ProfilePage />} />
+              {/* Visitas: el CLIENTE ve las suyas; los demás roles, las que tienen asignadas (docs/visitas-service.md) */}
+              <Route path="visitas" element={<VisitsPage />} />
               <Route element={<RequireAuth roles={['ADMINISTRADOR_CENTRAL']} />}>
                 <Route path="usuarios" element={<UsersPage />} />
                 <Route path="oficinas" element={<OfficesPage />} />
@@ -72,6 +77,9 @@ export default function App() {
                 <Route path="propiedades" element={<PropertiesPage />} />
                 <Route path="propiedades/nueva" element={<PropertyCreatePage />} />
                 <Route path="propiedades/:id" element={<PropertyManagePage />} />
+                {/* Leads: asignados al agente autenticado (docs/lead-service.md) */}
+                <Route path="leads" element={<LeadsPage />} />
+                <Route path="leads/:id" element={<LeadDetailPage />} />
               </Route>
             </Route>
           </Route>

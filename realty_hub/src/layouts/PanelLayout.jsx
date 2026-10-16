@@ -1,5 +1,6 @@
 import {
   Building,
+  CalendarDays,
   ChevronRight,
   Contact,
   House,
@@ -34,6 +35,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/panel', label: 'Inicio', icon: LayoutGrid, end: true },
       { to: '/panel/perfil', label: 'Mi perfil', icon: UserRound },
+      { to: '/panel/visitas', label: 'Mis visitas', icon: CalendarDays, roles: ['CLIENTE'] },
     ],
   },
   {
@@ -49,10 +51,17 @@ const NAV_GROUPS = [
     title: 'Inventario',
     items: [{ to: '/panel/propiedades', label: 'Propiedades', icon: House, roles: [ADMIN, GERENTE, AGENTE] }],
   },
+  {
+    title: 'Clientes',
+    items: [
+      { to: '/panel/leads', label: 'Leads', icon: Contact, roles: [ADMIN, GERENTE, AGENTE] },
+      { to: '/panel/visitas', label: 'Agenda de visitas', icon: CalendarDays, roles: [ADMIN, GERENTE, AGENTE] },
+    ],
+  },
 ]
 
 // Módulos aún no disponibles en el frontend: se muestran deshabilitados para anticipar la navegación.
-const UPCOMING = [{ label: 'Clientes', icon: Contact }]
+const UPCOMING = []
 
 // Título de cada ruta para el breadcrumb de la barra superior.
 const ROUTE_TITLES = [
@@ -64,6 +73,9 @@ const ROUTE_TITLES = [
   ['/panel/propiedades', 'Propiedades'],
   ['/panel/propiedades/nueva', 'Publicar propiedad'],
   ['/panel/propiedades/:id', 'Propiedad'],
+  ['/panel/visitas', 'Visitas'],
+  ['/panel/leads', 'Leads'],
+  ['/panel/leads/:id', 'Lead'],
 ]
 
 const navItem =
@@ -210,20 +222,22 @@ function Sidebar({ groups, displayName, roleLabel, photo, onNavigate }) {
           </NavGroup>
         ))}
 
-        <NavGroup title="Próximamente">
-          {UPCOMING.map(({ label, icon: Icon }) => (
-            <li
-              key={label}
-              className={cn(navItem, 'cursor-default text-floral-white/40')}
-              aria-disabled="true"
-              title="Módulo en desarrollo"
-            >
-              <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
-              {label}
-              <span className="ml-auto text-meta font-normal text-floral-white/35">Pronto</span>
-            </li>
-          ))}
-        </NavGroup>
+        {UPCOMING.length > 0 && (
+          <NavGroup title="Próximamente">
+            {UPCOMING.map(({ label, icon: Icon }) => (
+              <li
+                key={label}
+                className={cn(navItem, 'cursor-default text-floral-white/40')}
+                aria-disabled="true"
+                title="Módulo en desarrollo"
+              >
+                <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+                {label}
+                <span className="ml-auto text-meta font-normal text-floral-white/35">Pronto</span>
+              </li>
+            ))}
+          </NavGroup>
+        )}
 
         <NavGroup title="Sitio público">
           <li>
