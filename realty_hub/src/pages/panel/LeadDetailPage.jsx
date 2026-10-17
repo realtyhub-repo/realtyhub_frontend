@@ -1,8 +1,9 @@
 import { addDays, startOfDay, subDays } from 'date-fns'
-import { CalendarDays, Check, ChevronLeft, ExternalLink } from 'lucide-react'
+import { CalendarDays, Check, ChevronLeft, ExternalLink, FileText, RotateCw } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { ESTADOS_LEAD, ESTADOS_LEAD_TERMINALES, cambiarEstadoLead, getLead } from '@/api/leadApi'
+import { listMisContratos } from '@/api/contratoApi'
 import { getPropiedad } from '@/api/propertyApi'
 import { listMisVisitas } from '@/api/visitaApi'
 import { useAuth } from '@/auth/auth-context'
@@ -13,9 +14,10 @@ import { useToast } from '@/components/panel/Toast'
 import { PropertyPhoto } from '@/components/property/PropertyPhoto'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { useAsync } from '@/hooks/useAsync'
+import { ESTADO_CONTRATO_BADGE, ESTADO_CONTRATO_LABELS, contratoErrorMessage } from '@/lib/contract'
 import { formatDate } from '@/lib/format'
 import { MODALIDAD_FRASE, TIPO_LABELS, formatPrice } from '@/lib/property'
 import { cn } from '@/lib/utils'
@@ -43,6 +45,7 @@ const PIPELINE = ESTADOS_LEAD.filter((e) => e !== 'DESCARTADO')
 export default function LeadDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [toast, showToast] = useToast()
   const [nuevoEstado, setNuevoEstado] = useState('')
   const [confirming, setConfirming] = useState(false)
@@ -98,8 +101,11 @@ export default function LeadDetailPage() {
       // 204 sin body: se vuelve a pedir el lead para mostrar lo que dice el servidor.
       const fresh = await getLead(lead.id)
       data.setData(fresh)
-      if (nuevoEstado === 'OFERTA_ACEPTADA') setContractNotice(true)
-      else showToast(`Estado actualizado a ${ESTADO_LEAD_LABELS[fresh?.estado ?? nuevoEstado].toLowerCase()}`)
+      if (nuevoEstado === 'OFERTA_ACEPTADA') {
+        // El agente va a sus contratos a esperar el borrador; el admin (sin listado) se queda con el aviso.
+        if (user.rol === 'AGENTE') navigate('/panel/contratos', { state: { leadId: lead.id } })
+        else setContractNotice(true)
+      } else showToast(`Estado actualizado a ${ESTADO_LEAD_LABELS[fresh?.estado ?? nuevoEstado].toLowerCase()}`)
       setNuevoEstado('')
     } catch (err) {
       // ESTADO_TERMINAL: el lead ya estaba cerrado o descartado; al recargar desaparece el selector.
@@ -133,7 +139,7 @@ export default function LeadDetailPage() {
 
       {contractNotice && (
         <Alert variant="success">
-          <p>Oferta aceptada. El borrador del contrato se está generando y estará disponible en Contratos en unos segundos.</p>
+          <p>Oferta aceptada. El borrador del contrato se está generando y estará disponible en unos segundos.</p>
         </Alert>
       )}
 
@@ -227,7 +233,8 @@ export default function LeadDetailPage() {
           )}
         </div>
 
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          {user.rol === 'AGENTE' && ['OFERTA_ACEPTADA', 'CERRADO'].includes(lead.estado) && <LeadContract leadId={lead.id} />}
           <div className="space-y-6 rounded-card bg-pale-oak/25 p-6">
             <h2 className="font-display text-subtitle font-semibold text-evergreen">Pipeline</h2>
             <Pipeline estado={lead.estado} />
@@ -328,6 +335,46 @@ function Pipeline({ estado }) {
         </li>
       )}
     </ol>
+  )
+}
+
+/**
+ * Contrato del lead (docs/contratos-service.md §Cómo conectar con Leads). No hay endpoint por lead: se busca en
+ * `mis-contratos` el que tenga este `leadId`. Si aún no está, el borrador se está generando de forma asíncrona.
+ */
+function LeadContract({ leadId }) {
+  const result = useAsync((signal) => listMisContratos({ signal }).then((list) => (list ?? []).find((c) => c.leadId === leadId) ?? null), [leadId])
+  const c = result.data
+
+  return (
+    <div className="space-y-3 rounded-card border border-ash-grey/60 p-5">
+      <h2 className="flex items-center gap-2 font-display text-body font-semibold text-evergreen">
+        <FileText className="size-[18px] text-ash-grey" strokeWidth={1.75} aria-hidden="true" />
+        Contrato
+      </h2>
+      {result.loading && !result.data ? (
+        <span className="block h-10 animate-pulse rounded-control bg-pale-oak/30" />
+      ) : result.error ? (
+        <p className="text-small text-muted-foreground">{contratoErrorMessage(result.error)}</p>
+      ) : c ? (
+        <>
+          <Badge variant={ESTADO_CONTRATO_BADGE[c.estado] ?? 'outline'} dot>
+            {ESTADO_CONTRATO_LABELS[c.estado] ?? c.estado}
+          </Badge>
+          <Link to={`/panel/contratos/${c.id}`} className={buttonVariants({ className: 'w-full' })}>
+            Ver contrato
+          </Link>
+        </>
+      ) : (
+        <>
+          <p className="text-small text-muted-foreground">El contrato se está generando.</p>
+          <Button variant="outline" size="sm" onClick={result.reload} loading={result.loading}>
+            {!result.loading && <RotateCw strokeWidth={1.75} aria-hidden="true" />}
+            Actualizar
+          </Button>
+        </>
+      )}
+    </div>
   )
 }
 

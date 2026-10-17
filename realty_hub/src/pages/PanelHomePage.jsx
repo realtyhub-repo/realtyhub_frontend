@@ -1,4 +1,4 @@
-import { Building, CalendarDays, ChevronRight, Contact, House, UserRound, Users, UsersRound } from 'lucide-react'
+import { Building, CalendarDays, ChevronRight, Contact, FileText, House, UserRound, Users, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { ROLE_LABELS, useAuth } from '@/auth/auth-context'
@@ -15,6 +15,8 @@ const MODULES = [
   { icon: Contact, title: 'Leads', text: 'Pipeline de clientes interesados: contacto y avance hasta el cierre.', to: '/panel/leads', roles: ['ADMINISTRADOR_CENTRAL', 'AGENTE'] },
   { icon: CalendarDays, title: 'Agenda', text: 'Tus visitas de la semana en el calendario.', to: '/panel/visitas', roles: ['ADMINISTRADOR_CENTRAL', 'GERENTE_OFICINA', 'AGENTE'] },
   { icon: CalendarDays, title: 'Mis visitas', text: 'Consulta o cancela las visitas que agendaste.', to: '/panel/visitas', roles: ['CLIENTE'] },
+  { icon: FileText, title: 'Contratos', text: 'Borradores por revisar y firmar, y PDF de los contratos firmados.', to: '/panel/contratos', roles: ['AGENTE'] },
+  { icon: FileText, title: 'Mis contratos', text: 'Revisa tus contratos y descarga el PDF firmado.', to: '/panel/contratos', roles: ['CLIENTE'] },
 ]
 
 function greeting(date) {

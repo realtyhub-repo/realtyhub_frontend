@@ -87,6 +87,7 @@
   --animate-dialog-in: dialog-in 220ms var(--ease-soft) both;
   --animate-sheet-in: sheet-in 260ms var(--ease-soft) both;
   --animate-sheet-in-right: sheet-in-right 260ms var(--ease-soft) both;
+  --animate-progress: progress 1.4s ease-in-out infinite;
   --animate-draw: draw 2.4s var(--ease-soft) both;
 
   @keyframes rise {
@@ -136,6 +137,15 @@
   @keyframes sheet-in {
     from {
       transform: translateX(-100%);
+    }
+  }
+  /* Barra de progreso indeterminada (firma de contratos) */
+  @keyframes progress {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
     }
   }
   @keyframes sheet-in-right {

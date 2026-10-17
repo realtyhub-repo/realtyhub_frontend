@@ -37,6 +37,7 @@ const NAV_GROUPS = [
       { to: '/panel', label: 'Inicio', icon: LayoutGrid, end: true },
       { to: '/panel/perfil', label: 'Mi perfil', icon: UserRound },
       { to: '/panel/visitas', label: 'Mis visitas', icon: CalendarDays, roles: ['CLIENTE'] },
+      { to: '/panel/contratos', label: 'Mis contratos', icon: FileText, roles: ['CLIENTE'] },
     ],
   },
   {
@@ -57,12 +58,13 @@ const NAV_GROUPS = [
     items: [
       { to: '/panel/leads', label: 'Leads', icon: Contact, roles: [ADMIN, AGENTE] },
       { to: '/panel/visitas', label: 'Agenda', icon: CalendarDays, roles: [ADMIN, GERENTE, AGENTE] },
+      { to: '/panel/contratos', label: 'Contratos', icon: FileText, roles: [AGENTE] },
     ],
   },
 ]
 
 // Módulos aún no disponibles en el frontend: se muestran deshabilitados para anticipar la navegación.
-const UPCOMING = [{ label: 'Contratos', icon: FileText, roles: [ADMIN, AGENTE] }]
+const UPCOMING = []
 
 // Título de cada ruta para el breadcrumb de la barra superior.
 const ROUTE_TITLES = [
@@ -77,6 +79,8 @@ const ROUTE_TITLES = [
   ['/panel/visitas', 'Visitas'],
   ['/panel/leads', 'Leads'],
   ['/panel/leads/:id', 'Lead'],
+  ['/panel/contratos', 'Contratos'],
+  ['/panel/contratos/:id', 'Contrato'],
 ]
 
 const navItem =

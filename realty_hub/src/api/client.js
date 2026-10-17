@@ -142,6 +142,44 @@ export function refreshSession() {
   return refreshPromise
 }
 
+const PDF_ERROR = 'El servidor no devolvió un PDF válido. Intenta de nuevo.'
+
+async function requestPdf(path, signal) {
+  let res
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: 'include',
+      signal,
+      headers: { Accept: 'application/pdf, application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+    })
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err
+    throw new ApiError({ mensaje: NETWORK_ERROR, status: 0 })
+  }
+  // Los errores llegan como JSON ({ codigo, mensaje, status }), no como PDF.
+  if (!res.ok) throw await toApiError(res)
+  const blob = await res.blob()
+  // Verificación de la firma "%PDF-": un proxy o un error con status 200 no debe mostrarse como documento.
+  const head = new TextDecoder().decode(await blob.slice(0, 5).arrayBuffer())
+  if (head !== '%PDF-') throw new ApiError({ mensaje: PDF_ERROR, status: res.status })
+  return blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
+}
+
+/**
+ * Descarga autenticada de un PDF (vista previa de contratos): devuelve un `Blob` de tipo `application/pdf`.
+ * Las rutas que exigen token no se pueden poner en un `<iframe src>`; quien llama crea la URL con
+ * `URL.createObjectURL` y la libera con `URL.revokeObjectURL`. Ante un 401 renueva el token y reintenta UNA vez.
+ */
+export async function apiRequestPdf(path, { signal } = {}) {
+  try {
+    return await requestPdf(path, signal)
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401) throw err
+    await refreshSession()
+    return requestPdf(path, signal)
+  }
+}
+
 /**
  * Llamada autenticada a otros microservicios. Ante un 401 renueva el token y reintenta UNA vez.
  * Si el refresh falla, la sesión queda limpia y el AuthProvider redirige a login.

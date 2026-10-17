@@ -2,6 +2,7 @@ import { CalendarClock, Contact, GripVertical, MoreHorizontal, Search } from 'lu
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { ESTADOS_LEAD, ESTADOS_LEAD_TERMINALES, cambiarEstadoLead, listMisLeads } from '@/api/leadApi'
+import { useAuth } from '@/auth/auth-context'
 import { ConfirmDialog } from '@/components/panel/ConfirmDialog'
 import { PageHeader } from '@/components/panel/PageHeader'
 import { Segmented } from '@/components/panel/Segmented'
@@ -42,6 +43,8 @@ const COLUMNAS = ESTADOS_LEAD.filter((e) => !ESTADOS_LEAD_TERMINALES.includes(e)
  */
 export default function LeadsPage() {
   const [params, setParams] = useSearchParams()
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const vista = params.get('vista') === 'finalizados' ? 'finalizados' : 'pipeline'
   const [toast, showToast] = useToast()
   const [moving, setMoving] = useState(null) // { id, estado } mientras el PUT está en curso
@@ -74,7 +77,10 @@ export default function LeadsPage() {
       const fresh = await listMisLeads()
       result.setData(fresh)
       if (estado === 'OFERTA_ACEPTADA') {
-        setNotice({ kind: 'success', text: 'Oferta aceptada. El borrador del contrato se está generando y estará listo en Contratos en unos segundos.' })
+        // El agente va a sus contratos, donde se espera el borrador (docs/contratos-service.md §Cómo conectar con Leads).
+        // El admin no tiene listado de contratos: se queda aquí con el aviso.
+        if (user.rol === 'AGENTE') navigate('/panel/contratos', { state: { leadId: lead.id } })
+        else setNotice({ kind: 'success', text: 'Oferta aceptada. El borrador del contrato se está generando y estará listo en unos segundos.' })
       } else {
         showToast(`Lead movido a ${ESTADO_LEAD_LABELS[estado].toLowerCase()}`)
       }

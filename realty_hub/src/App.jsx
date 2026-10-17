@@ -5,6 +5,7 @@ import { RedirectIfAuthenticated, RequireAuth } from '@/auth/RequireAuth'
 import { GOOGLE_CLIENT_ID } from '@/components/auth/GoogleSignIn'
 import { PanelLayout } from '@/layouts/PanelLayout'
 import { PublicLayout } from '@/layouts/PublicLayout'
+import { ROLES_DETALLE_CONTRATO, ROLES_LISTA_CONTRATOS } from '@/lib/contract'
 import { PUBLISHER_ROLES } from '@/lib/property'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import LoginPage from '@/pages/auth/LoginPage'
@@ -13,6 +14,8 @@ import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import VerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 import PanelHomePage from '@/pages/PanelHomePage'
 import AgentsPage from '@/pages/panel/AgentsPage'
+import ContractDetailPage from '@/pages/panel/ContractDetailPage'
+import ContractsPage from '@/pages/panel/ContractsPage'
 import LeadDetailPage from '@/pages/panel/LeadDetailPage'
 import LeadsPage from '@/pages/panel/LeadsPage'
 import OfficesPage from '@/pages/panel/OfficesPage'
@@ -82,6 +85,13 @@ export default function App() {
               <Route element={<RequireAuth roles={['ADMINISTRADOR_CENTRAL', 'AGENTE']} />}>
                 <Route path="leads" element={<LeadsPage />} />
                 <Route path="leads/:id" element={<LeadDetailPage />} />
+              </Route>
+              {/* Contratos: lista para agente y cliente; el admin solo abre detalles; el gerente recibe 403 (docs/contratos-service.md) */}
+              <Route element={<RequireAuth roles={ROLES_LISTA_CONTRATOS} />}>
+                <Route path="contratos" element={<ContractsPage />} />
+              </Route>
+              <Route element={<RequireAuth roles={ROLES_DETALLE_CONTRATO} />}>
+                <Route path="contratos/:id" element={<ContractDetailPage />} />
               </Route>
             </Route>
           </Route>

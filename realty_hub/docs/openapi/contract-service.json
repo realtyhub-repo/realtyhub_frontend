@@ -1,0 +1,1040 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - Servicio de Contratos",
+    "description": "Gestión del ciclo de vida de contratos inmobiliarios: consulta, edición, firma, cancelación y descarga de documentos PDF.",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8086",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Contratos",
+      "description": "Consulta y gestión del ciclo de vida de los contratos"
+    }
+  ],
+  "paths": {
+    "/contratos/{id}": {
+      "get": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Obtener detalle de un contrato",
+        "description": "Devuelve el contrato completo, incluido su contenido renderizado. Accesible para el cliente, el agente del contrato o un administrador central.",
+        "operationId": "obtenerDetalle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del contrato",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle del contrato",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoDetalleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no participa en el contrato",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contrato no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Actualizar precio acordado",
+        "description": "Modifica el precio acordado y vuelve a renderizar el contenido. Solo el agente del contrato o un administrador central, y solo en estado BORRADOR.",
+        "operationId": "actualizar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del contrato",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarContratoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Contrato actualizado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo de la solicitud inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es el agente del contrato ni administrador",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contrato no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El contrato no está en BORRADOR",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos/{id}/firmar": {
+      "patch": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Firmar contrato",
+        "description": "Pasa el contrato de BORRADOR a FIRMADO, genera el PDF definitivo, lo almacena y publica el evento de contrato firmado. Requiere precio acordado.",
+        "operationId": "firmar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del contrato",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contrato firmado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es el agente del contrato ni administrador",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contrato no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El contrato no está en BORRADOR o no tiene precio acordado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error al generar el PDF",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error al almacenar el documento",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos/{id}/cancelar": {
+      "patch": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Cancelar contrato",
+        "description": "Pasa el contrato a CANCELADO. Si estaba FIRMADO, publica el evento de contrato cancelado.",
+        "operationId": "cancelar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del contrato",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contrato cancelado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es el agente del contrato ni administrador",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contrato no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El contrato ya está cancelado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos/{id}/vista-previa": {
+      "get": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Vista previa en PDF",
+        "description": "Genera al vuelo el PDF del borrador. Solo disponible para contratos en BORRADOR.",
+        "operationId": "vistaPrevia",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del contrato",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF del borrador",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no participa en el contrato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contrato no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El contrato no está en BORRADOR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error al generar el PDF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos/{id}/documento": {
+      "get": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Obtener documento firmado",
+        "description": "Devuelve una URL temporal para descargar la última versión del PDF firmado.",
+        "operationId": "obtenerDocumento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del contrato",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URL de descarga del documento",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentoDescargaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no participa en el contrato",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contrato no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El contrato aún no tiene un documento firmado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error al generar la URL de descarga",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos/mis-contratos": {
+      "get": {
+        "tags": [
+          "Contratos"
+        ],
+        "summary": "Listar mis contratos",
+        "description": "Devuelve los contratos del cliente o agente autenticado, del más reciente al más antiguo. Solo disponible para los roles CLIENTE y AGENTE.",
+        "operationId": "listarMisContratos",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Filtra por estado del contrato",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BORRADOR",
+                "FIRMADO",
+                "CANCELADO"
+              ]
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado de contratos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContratoResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Estado con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no tiene un listado de contratos propio",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActualizarContratoRequest": {
+        "type": "object",
+        "description": "Datos para actualizar un contrato en BORRADOR",
+        "properties": {
+          "precioAcordado": {
+            "type": "number",
+            "description": "Precio acordado entre las partes",
+            "example": 350000000,
+            "minimum": 0.01
+          }
+        },
+        "required": [
+          "precioAcordado"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Respuesta de error estándar del servicio",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "Código del error",
+            "example": "CONTRATO_NO_ENCONTRADO"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje legible del error",
+            "example": "Contrato no encontrado"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código HTTP",
+            "example": 404
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del error"
+          }
+        }
+      },
+      "ContratoResponse": {
+        "type": "object",
+        "description": "Resumen de un contrato",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del contrato"
+          },
+          "leadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del lead que originó el contrato"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la propiedad"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del cliente"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del agente"
+          },
+          "tipo": {
+            "type": "string",
+            "description": "Tipo de contrato",
+            "enum": [
+              "ARRAS",
+              "ALQUILER",
+              "COMPRAVENTA"
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado actual del contrato",
+            "enum": [
+              "BORRADOR",
+              "FIRMADO",
+              "CANCELADO"
+            ]
+          },
+          "precioAcordado": {
+            "type": "number",
+            "description": "Precio acordado; null mientras no se haya definido",
+            "example": 350000000
+          },
+          "firmadoEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de la firma; null si no está firmado"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de creación"
+          }
+        }
+      },
+      "ContratoDetalleResponse": {
+        "type": "object",
+        "description": "Detalle completo de un contrato",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del contrato"
+          },
+          "leadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del lead que originó el contrato"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la propiedad"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del cliente"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del agente"
+          },
+          "tipo": {
+            "type": "string",
+            "description": "Tipo de contrato",
+            "enum": [
+              "ARRAS",
+              "ALQUILER",
+              "COMPRAVENTA"
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado actual del contrato",
+            "enum": [
+              "BORRADOR",
+              "FIRMADO",
+              "CANCELADO"
+            ]
+          },
+          "pais": {
+            "type": "string",
+            "description": "Código del país del contrato",
+            "example": "CO"
+          },
+          "precioAcordado": {
+            "type": "number",
+            "description": "Precio acordado; null mientras no se haya definido",
+            "example": 350000000
+          },
+          "contenido": {
+            "type": "string",
+            "description": "Texto del contrato renderizado desde la plantilla"
+          },
+          "nombreCliente": {
+            "type": "string",
+            "description": "Nombre del cliente"
+          },
+          "nombreAgente": {
+            "type": "string",
+            "description": "Nombre del agente"
+          },
+          "direccionPropiedad": {
+            "type": "string",
+            "description": "Dirección de la propiedad"
+          },
+          "ciudadPropiedad": {
+            "type": "string",
+            "description": "Ciudad de la propiedad"
+          },
+          "firmadoEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de la firma; null si no está firmado"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de creación"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de la última modificación"
+          }
+        }
+      },
+      "DocumentoDescargaResponse": {
+        "type": "object",
+        "description": "Enlace temporal de descarga del documento firmado",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "URL prefirmada para descargar el PDF"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Versión del documento",
+            "example": 1
+          },
+          "hashSha256": {
+            "type": "string",
+            "description": "Hash SHA-256 del PDF en hexadecimal"
+          },
+          "expiraEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora en que expira la URL"
+          }
+        }
+      }
+    }
+  }
+}
