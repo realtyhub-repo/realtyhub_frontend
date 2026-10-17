@@ -52,13 +52,14 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/olvide-contrasena" element={<ForgotPasswordPage />} />
 
-          {/* Sitio público (sin sesión): GET /propiedades/**, GET /oficinas/** y GET /agentes/{id} */}
+          {/* Sitio público (sin sesión): GET /propiedades/**, GET /oficinas/** y GET /agentes/** */}
           <Route element={<PublicLayout />}>
             <Route path="/propiedades" element={<PropertiesCatalogPage />} />
             <Route path="/propiedades/:id" element={<PropertyDetailPage />} />
             <Route path="/oficinas" element={<OfficesDirectoryPage />} />
             <Route path="/oficinas/:id" element={<OfficeDetailPage />} />
             <Route path="/agentes/:id" element={<AgentProfilePage />} />
+            <Route path="/agentes/usuario/:usuarioId" element={<AgentProfilePage />} />
           </Route>
 
           {/* Privadas */}

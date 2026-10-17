@@ -126,6 +126,16 @@ export function getAgente(id, { signal } = {}) {
 }
 
 /**
+ * GET /agentes/usuario/{usuarioId} → AgenteResponse, buscando por el `usuarioId` del agente: el `agenteId` que
+ * usan propiedades, leads, visitas y contratos. 404 si ese usuario no está registrado como agente.
+ * Aún no figura en docs/openapi/user-service.json; se asume la misma respuesta y visibilidad que `GET /agentes/{id}`.
+ * Si hay sesión se manda el token (sin forzar refresh), por si el Gateway la exige.
+ */
+export function getAgentePorUsuario(usuarioId, { signal } = {}) {
+  return request(`/agentes/usuario/${enc(usuarioId)}`, { method: 'GET', auth: true, signal })
+}
+
+/**
  * POST /agentes → 200 AgenteResponse. ADMINISTRADOR_CENTRAL, o GERENTE_OFICINA para su oficina.
  * Body CrearAgenteRequest { usuarioId*, oficinaId*, zonaEspecialidad }.
  */

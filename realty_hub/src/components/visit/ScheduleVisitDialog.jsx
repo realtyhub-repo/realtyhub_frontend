@@ -274,8 +274,7 @@ function Scheduled({ lead, fallbackInicio, titulo, onClose }) {
                 <span className="block h-4 w-32 animate-pulse rounded-full bg-pale-oak/40" />
               ) : agenteId ? (
                 <Link
-                  to={`/agentes/${agenteId}`}
-                  state={{ nombre: visita.data?.nombreAgente }}
+                  to={`/agentes/usuario/${agenteId}`}
                   className={cn('truncate font-medium text-evergreen underline-offset-4 hover:underline')}
                 >
                   {agentName(visita.data)}

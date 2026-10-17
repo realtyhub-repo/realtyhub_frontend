@@ -211,8 +211,7 @@ function VisitCard({ visita: v, propiedad: p, onCancel }) {
             <span className="truncate">
               Con{' '}
               <Link
-                to={`/agentes/${v.agenteId}`}
-                state={{ nombre: v.nombreAgente }}
+                to={`/agentes/usuario/${v.agenteId}`}
                 className="font-medium text-evergreen underline-offset-4 hover:underline"
               >
                 {agentName(v)}

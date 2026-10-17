@@ -167,7 +167,18 @@ export default function ContractDetailPage() {
 
           <dl className="divide-y divide-ash-grey/40 rounded-card border border-ash-grey/60 text-small">
             <Row label="Cliente" value={c.nombreCliente} />
-            <Row label="Agente" value={c.nombreAgente} />
+            <Row
+              label="Agente"
+              value={
+                c.nombreAgente && c.agenteId ? (
+                  <Link to={`/agentes/usuario/${c.agenteId}`} className="underline-offset-4 hover:underline">
+                    {c.nombreAgente}
+                  </Link>
+                ) : (
+                  c.nombreAgente
+                )
+              }
+            />
             <Row
               label="Propiedad"
               value={
