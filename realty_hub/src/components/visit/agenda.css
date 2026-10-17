@@ -41,6 +41,9 @@
   --sx-border: 1px solid color-mix(in srgb, var(--ash-grey) 50%, var(--floral-white));
   --sx-calendar-header-input-font-size: 14px;
 
+  /* Contexto de apilamiento propio: los z-index internos de Schedule-X (cabecera de días fija, popups)
+     quedan contenidos aquí y no se pintan encima de los diálogos del panel (z-50). */
+  isolation: isolate;
   font-family: var(--font-sans);
 }
 
