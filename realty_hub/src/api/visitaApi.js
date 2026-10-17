@@ -1,5 +1,5 @@
 /**
- * Visitas service — generado a partir de docs/openapi/visitas-service.json + docs/visitas-service.md.
+ * Visitas service — generado a partir de docs/openapi/visits-service.json + docs/visits-service.md.
  *
  * - Todo pasa por el Gateway (`API_BASE_URL`) bajo `/visitas/**`. Nunca se envían `X-User-Id` / `X-User-Role`.
  * - `/internal/visitas/**` no lo expone el Gateway (lo usa Lead): no hay funciones para esas rutas. Las
@@ -22,16 +22,17 @@ function query(params) {
 
 /**
  * GET /visitas/propiedad/{propiedadId}/ocupacion?fecha=YYYY-MM-DD → [{ fechaHora, fechaHoraFin }].
- * Franjas no canceladas de la propiedad ese día, para pintar el calendario.
+ * Franjas no canceladas de la propiedad ese día. `[]` = día libre (también para un id inexistente).
  */
 export function getOcupacion(propiedadId, fecha, { signal } = {}) {
   return apiRequest(`/visitas/propiedad/${enc(propiedadId)}/ocupacion${query({ fecha })}`, { signal })
 }
 
 /**
- * GET /visitas/mis-visitas?estado=&desde=&hasta= → VisitaResponse[]
- * { id, propiedadId, clienteId, agenteId, leadId, fechaHora, fechaHoraFin, estadoVisita }.
+ * GET /visitas/mis-visitas?estado=&desde=&hasta= → VisitaResponse[] ordenadas por fechaHora
+ * { id, propiedadId, clienteId, agenteId, nombreAgente, leadId, fechaHora, fechaHoraFin, estadoVisita }.
  * CLIENTE ve sus visitas; los demás roles, las visitas donde son el agente. Sin rango: hoy → 30 días.
+ * `nombreAgente` es opcional (null si Usuarios no respondió). 400 FECHA_INVALIDA si `desde` > `hasta`.
  */
 export function listMisVisitas({ estado, desde, hasta, signal } = {}) {
   return apiRequest(`/visitas/mis-visitas${query({ estado, desde, hasta })}`, { signal })
@@ -39,7 +40,8 @@ export function listMisVisitas({ estado, desde, hasta, signal } = {}) {
 
 /**
  * PATCH /visitas/{id}/estado → 200 VisitaResponse. Body { nuevoEstado }.
- * Solo desde PROGRAMADA; REALIZADA únicamente si la hora de inicio ya pasó. 409 TRANSICION_INVALIDA.
+ * Solo desde PROGRAMADA; REALIZADA únicamente si la hora de inicio ya pasó (agente o admin); el cliente
+ * solo puede CANCELADA. 409 TRANSICION_INVALIDA, 403 ACCESO_NO_AUTORIZADO, 404 VISITA_NO_ENCONTRADA.
  */
 export function cambiarEstadoVisita(id, nuevoEstado) {
   return apiRequest(`/visitas/${enc(id)}/estado`, { method: 'PATCH', body: { nuevoEstado } })

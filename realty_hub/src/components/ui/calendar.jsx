@@ -47,6 +47,11 @@ function Calendar({ className, classNames, modifiersClassNames, showOutsideDays 
           'rdp-selected [&>button]:bg-evergreen [&>button]:font-medium [&>button]:text-floral-white [&>button]:hover:bg-emerald-depths',
         today:
           '[&>button]:font-semibold [&>button]:underline [&>button]:decoration-pale-oak [&>button]:decoration-2 [&>button]:underline-offset-4',
+        // Modo rango: extremos en evergreen, días intermedios en una franja continua pale-oak.
+        range_start: 'rounded-l-control bg-pale-oak/40',
+        range_end: 'rounded-r-control bg-pale-oak/40',
+        range_middle:
+          'bg-pale-oak/40 [&.rdp-selected>button]:rounded-none [&.rdp-selected>button]:bg-transparent [&.rdp-selected>button]:font-normal [&.rdp-selected>button]:text-evergreen [&.rdp-selected>button]:hover:bg-pale-oak/60',
         outside: '[&>button]:text-ash-grey',
         disabled:
           '[&>button]:cursor-default [&>button]:text-ash-grey/70 [&>button]:no-underline [&>button]:hover:bg-transparent',

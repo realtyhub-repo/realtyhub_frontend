@@ -12,9 +12,9 @@ const MODULES = [
   { icon: UsersRound, title: 'Mi equipo', text: 'Agentes de la oficina que diriges.', to: '/panel/agentes', roles: ['GERENTE_OFICINA'] },
   { icon: House, title: 'Propiedades', text: 'Publica, edita y sigue el estado de cada inmueble.', to: '/panel/propiedades', roles: ['ADMINISTRADOR_CENTRAL', 'GERENTE_OFICINA', 'AGENTE'] },
   { icon: House, title: 'Catálogo de propiedades', text: 'Explora las casas y apartamentos disponibles.', to: '/propiedades', roles: ['CLIENTE'] },
-  { icon: Contact, title: 'Leads', text: 'Clientes interesados en tus propiedades: contacto y avance en el embudo.', to: '/panel/leads', roles: ['ADMINISTRADOR_CENTRAL', 'GERENTE_OFICINA', 'AGENTE'] },
-  { icon: CalendarDays, title: 'Agenda de visitas', text: 'Visitas asignadas a ti, por día y estado.', to: '/panel/visitas', roles: ['ADMINISTRADOR_CENTRAL', 'GERENTE_OFICINA', 'AGENTE'] },
-  { icon: CalendarDays, title: 'Mis visitas', text: 'Consulta, cancela o vuelve a agendar tus visitas.', to: '/panel/visitas', roles: ['CLIENTE'] },
+  { icon: Contact, title: 'Leads', text: 'Pipeline de clientes interesados: contacto y avance hasta el cierre.', to: '/panel/leads', roles: ['ADMINISTRADOR_CENTRAL', 'AGENTE'] },
+  { icon: CalendarDays, title: 'Agenda', text: 'Tus visitas de la semana en el calendario.', to: '/panel/visitas', roles: ['ADMINISTRADOR_CENTRAL', 'GERENTE_OFICINA', 'AGENTE'] },
+  { icon: CalendarDays, title: 'Mis visitas', text: 'Consulta o cancela las visitas que agendaste.', to: '/panel/visitas', roles: ['CLIENTE'] },
 ]
 
 function greeting(date) {

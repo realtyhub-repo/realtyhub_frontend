@@ -1,0 +1,790 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - Microservicio de Leads",
+    "description": "Gestión de leads (contactos de clientes interesados en una propiedad): creación con asignación automática de agente y visita, agendamiento de visitas, cambio de estado y consulta. La identidad del usuario llega desde el gateway en los headers X-User-Id y X-User-Role.",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8084",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Leads",
+      "description": "Gestión del ciclo de vida de los leads de clientes sobre propiedades"
+    }
+  ],
+  "paths": {
+    "/leads/{id}/estado": {
+      "put": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Cambiar estado del lead",
+        "description": "Actualiza el estado comercial del lead. Permitido al agente asignado o a ADMINISTRADOR_CENTRAL. Al pasar a OFERTA_ACEPTADA se publica el evento correspondiente. No se puede modificar un lead CERRADO o DESCARTADO.",
+        "operationId": "cambiarEstado",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del lead",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (agente o administrador)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoLeadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Estado actualizado"
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No es el agente asignado ni administrador central",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lead no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El lead está en estado terminal",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leads": {
+      "post": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Crear lead",
+        "description": "Registra el interés de un cliente en una propiedad. Busca agentes cercanos a la propiedad, asigna el primero libre en la fecha indicada y reserva la visita. Solo rol CLIENTE.",
+        "operationId": "crear",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (cliente)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearLeadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Lead creado y visita agendada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida o fecha de visita inválida",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no tiene rol CLIENTE",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Propiedad no encontrada o no disponible",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lead duplicado, sin agentes disponibles, agente/propiedad ocupados o visita ya existente",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Servicio de visitas no disponible",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leads/{id}/visitas": {
+      "post": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Agendar visita para un lead",
+        "description": "Reserva una nueva visita con el agente ya asignado al lead. Si el lead estaba en CONTACTADO pasa a VISITA_AGENDADA. Solo el cliente dueño del lead.",
+        "operationId": "agendarVisita",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del lead",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (cliente)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgendarVisitaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Visita agendada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida o fecha de visita inválida",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es CLIENTE o no es dueño del lead",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lead no encontrado o propiedad ya no disponible",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lead en estado terminal, sin agente asignado, agente/propiedad ocupados o visita ya existente",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Servicio de visitas no disponible",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leads/{id}": {
+      "get": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Obtener detalle del lead",
+        "description": "Devuelve el lead con los datos de contacto del cliente. Permitido al agente asignado o a ADMINISTRADOR_CENTRAL.",
+        "operationId": "obtenerDetalle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID del lead",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (agente o administrador)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle del lead",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadDetalleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No es el agente asignado ni administrador central",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lead no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leads/mis-leads": {
+      "get": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Listar mis leads",
+        "description": "Devuelve los leads asignados al agente autenticado, opcionalmente filtrados por estado.",
+        "operationId": "listarMisLeads",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Filtra por estado del lead (opcional)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CONTACTADO",
+                "VISITA_AGENDADA",
+                "OFERTA_PRESENTADA",
+                "NEGOCIACION",
+                "OFERTA_ACEPTADA",
+                "CERRADO",
+                "DESCARTADO"
+              ]
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (agente)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado de leads",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeadResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Estado de filtro inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CambiarEstadoLeadRequest": {
+        "type": "object",
+        "description": "Nuevo estado a asignar al lead",
+        "properties": {
+          "nuevoEstado": {
+            "type": "string",
+            "description": "Estado destino del lead",
+            "enum": [
+              "CONTACTADO",
+              "VISITA_AGENDADA",
+              "OFERTA_PRESENTADA",
+              "NEGOCIACION",
+              "OFERTA_ACEPTADA",
+              "CERRADO",
+              "DESCARTADO"
+            ],
+            "example": "NEGOCIACION"
+          }
+        },
+        "required": [
+          "nuevoEstado"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Respuesta estándar de error",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "Código de error de negocio",
+            "example": "LEAD_NO_ENCONTRADO"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje descriptivo del error",
+            "example": "Lead no encontrado"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código de estado HTTP",
+            "example": 404
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Momento en que ocurrió el error",
+            "example": "2026-10-16T15:30:00"
+          }
+        }
+      },
+      "CrearLeadRequest": {
+        "type": "object",
+        "description": "Datos para crear un lead y agendar la primera visita",
+        "properties": {
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID de la propiedad de interés",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora deseada para la visita",
+            "example": "2026-10-20T10:00:00"
+          }
+        },
+        "required": [
+          "fechaHora",
+          "propiedadId"
+        ]
+      },
+      "LeadResponse": {
+        "type": "object",
+        "description": "Información resumida de un lead",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID del lead",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID de la propiedad",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID del cliente que generó el lead",
+            "example": "9b2f1c3e-1a2b-4c5d-8e9f-0a1b2c3d4e5f"
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado actual del lead",
+            "enum": [
+              "CONTACTADO",
+              "VISITA_AGENDADA",
+              "OFERTA_PRESENTADA",
+              "NEGOCIACION",
+              "OFERTA_ACEPTADA",
+              "CERRADO",
+              "DESCARTADO"
+            ],
+            "example": "VISITA_AGENDADA"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID del agente asignado",
+            "example": "1d2e3f4a-5b6c-7d8e-9f0a-1b2c3d4e5f6a"
+          },
+          "visitaId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "ID de la visita reservada (solo al crear lead o agendar visita)",
+            "example": "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
+          },
+          "fechaHoraVisita": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Fecha y hora de la visita reservada (solo al crear lead o agendar visita)",
+            "example": "2026-10-20T10:00:00"
+          }
+        }
+      },
+      "AgendarVisitaRequest": {
+        "type": "object",
+        "description": "Datos para agendar una nueva visita sobre un lead existente",
+        "properties": {
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora deseada para la visita",
+            "example": "2026-10-20T10:00:00"
+          }
+        },
+        "required": [
+          "fechaHora"
+        ]
+      },
+      "LeadDetalleResponse": {
+        "type": "object",
+        "description": "Detalle de un lead con los datos de contacto del cliente",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID del lead",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID de la propiedad",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado actual del lead",
+            "enum": [
+              "CONTACTADO",
+              "VISITA_AGENDADA",
+              "OFERTA_PRESENTADA",
+              "NEGOCIACION",
+              "OFERTA_ACEPTADA",
+              "CERRADO",
+              "DESCARTADO"
+            ],
+            "example": "NEGOCIACION"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID del cliente",
+            "example": "9b2f1c3e-1a2b-4c5d-8e9f-0a1b2c3d4e5f"
+          },
+          "nombreCliente": {
+            "type": "string",
+            "description": "Nombre del cliente",
+            "example": "Juan Pérez"
+          },
+          "telefonoCliente": {
+            "type": "string",
+            "description": "Teléfono del cliente",
+            "example": "+57 300 123 4567"
+          },
+          "emailCliente": {
+            "type": "string",
+            "description": "Correo electrónico del cliente",
+            "example": "juan.perez@correo.com"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID del agente asignado",
+            "example": "1d2e3f4a-5b6c-7d8e-9f0a-1b2c3d4e5f6a"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha de creación del lead",
+            "example": "2026-10-16T09:15:00"
+          }
+        }
+      }
+    }
+  }
+}

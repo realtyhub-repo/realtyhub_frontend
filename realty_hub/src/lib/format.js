@@ -20,3 +20,19 @@ export function formatCoord(n) {
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Enlace de WhatsApp (`wa.me`) para un teléfono libre ("+57 300 123 4567", "3001234567").
+ * Un celular colombiano de 10 dígitos sin indicativo se completa con 57. Null si no hay dígitos suficientes.
+ */
+export function whatsappUrl(phone) {
+  let digits = String(phone ?? '').replace(/\D/g, '')
+  if (digits.length === 10 && digits.startsWith('3')) digits = `57${digits}`
+  return digits.length >= 8 ? `https://wa.me/${digits}` : null
+}
+
+/** `tel:` sin espacios ni separadores, conservando el "+" inicial. */
+export function telHref(phone) {
+  const s = String(phone ?? '').trim()
+  return `tel:${s.startsWith('+') ? '+' : ''}${s.replace(/\D/g, '')}`
+}

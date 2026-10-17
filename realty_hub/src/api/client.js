@@ -29,14 +29,17 @@ export class ApiError extends Error {
 }
 
 async function toApiError(res) {
-  // Los 5xx muestran un mensaje genérico (docs §4); los 4xx traen `mensaje` listo para el usuario.
-  if (res.status >= 500) return new ApiError({ mensaje: GENERIC_ERROR, status: res.status })
+  // Los 5xx muestran un mensaje genérico (docs §4) pero conservan `codigo` (503 VISITAS_NO_DISPONIBLE);
+  // los 4xx traen `mensaje` listo para el usuario.
+  let body = null
   try {
-    const body = await res.json()
-    return new ApiError({ ...body, status: body?.status ?? res.status })
+    body = await res.json()
   } catch {
-    return new ApiError({ mensaje: GENERIC_ERROR, status: res.status })
+    // Sin body JSON (proxy, Gateway caído…): solo queda el status.
   }
+  if (res.status >= 500) return new ApiError({ codigo: body?.codigo, mensaje: GENERIC_ERROR, status: res.status })
+  if (!body) return new ApiError({ mensaje: GENERIC_ERROR, status: res.status })
+  return new ApiError({ ...body, status: body.status ?? res.status })
 }
 
 async function parseBody(res) {

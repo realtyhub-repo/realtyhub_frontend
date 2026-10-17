@@ -1,6 +1,6 @@
 import { Building, ChevronLeft, MapPin } from 'lucide-react'
 import { useMemo } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import { getAgente, getOficina } from '@/api/userApi'
 import { OfficeMap } from '@/components/map/OfficeMap'
 import { PublicError } from '@/components/public/PublicStates'
@@ -11,9 +11,14 @@ import { initials } from '@/lib/format'
 /**
  * Ficha pública de un agente (`GET /agentes/{id}`, id del registro de agente). Solo nombre, oficina y zona:
  * el contacto no es público (docs/user-service.md §4.6).
+ *
+ * Leads y Visitas enlazan aquí con su `agenteId`, que es el `usuarioId` y no el id del registro: mientras el
+ * backend no ofrezca un perfil por usuario, esa búsqueda da 404 y se muestra una ficha provisional con el
+ * nombre que llega en el estado de la navegación (docs/leads-service.md §Lo que no existe todavía).
  */
 export default function AgentProfilePage() {
   const { id } = useParams()
+  const location = useLocation()
 
   const data = useAsync(
     async (signal) => {
@@ -26,6 +31,7 @@ export default function AgentProfilePage() {
 
   const mapOffices = useMemo(() => (data.data?.oficina ? [data.data.oficina] : []), [data.data])
 
+  if (data.error?.status === 404) return <ProvisionalProfile nombre={location.state?.nombre} />
   if (data.error) return <PublicError error={data.error} notFoundTitle="No encontramos a este agente" onRetry={data.reload} />
   if (data.loading) {
     return (
@@ -124,6 +130,30 @@ export default function AgentProfilePage() {
           />
         </section>
       )}
+    </article>
+  )
+}
+
+function ProvisionalProfile({ nombre }) {
+  return (
+    <article className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-10">
+      <Link to="/panel/visitas" className="inline-flex items-center gap-1 text-small text-muted-foreground transition-colors duration-150 hover:text-evergreen">
+        <ChevronLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        Mis visitas
+      </Link>
+      <div className="mt-8 grid gap-10 md:grid-cols-[280px_minmax(0,1fr)] md:gap-14">
+        <div className="flex aspect-square items-center justify-center rounded-card bg-evergreen text-pale-oak" aria-hidden="true">
+          <span className="font-display text-[96px] font-semibold leading-none tracking-tight">{initials(nombre || 'Agente')}</span>
+        </div>
+        <div className="flex flex-col justify-center">
+          <h1 className="font-display text-hero font-bold leading-[1.1] text-evergreen">{nombre || 'Agente asignado'}</h1>
+          <p className="mt-3 text-subtitle text-muted-foreground">Agente inmobiliario</p>
+          <p className="mt-8 max-w-[60ch] border-t border-ash-grey/50 pt-8 text-muted-foreground">
+            La ficha completa del agente, con su oficina y zona de especialidad, estará disponible pronto. Mientras tanto,
+            el agente te contactará al teléfono que registraste para confirmar la visita.
+          </p>
+        </div>
+      </div>
     </article>
   )
 }

@@ -86,6 +86,7 @@
   --animate-overlay-in: fade 200ms ease-out both;
   --animate-dialog-in: dialog-in 220ms var(--ease-soft) both;
   --animate-sheet-in: sheet-in 260ms var(--ease-soft) both;
+  --animate-sheet-in-right: sheet-in-right 260ms var(--ease-soft) both;
   --animate-draw: draw 2.4s var(--ease-soft) both;
 
   @keyframes rise {
@@ -135,6 +136,11 @@
   @keyframes sheet-in {
     from {
       transform: translateX(-100%);
+    }
+  }
+  @keyframes sheet-in-right {
+    from {
+      transform: translateX(100%);
     }
   }
   @keyframes draw {

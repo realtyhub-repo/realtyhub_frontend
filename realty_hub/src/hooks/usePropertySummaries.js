@@ -8,7 +8,7 @@ const cache = new Map()
 function load(id) {
   if (!cache.has(id)) {
     const p = getPropiedad(id).then(
-      (d) => ({ id: d.id, titulo: d.titulo, ciudad: d.ciudad, direccion: d.direccion, precio: d.precio, modalidad: d.modalidad, foto: d.imagenes?.find((i) => i.esPortada)?.url ?? d.imagenes?.[0]?.url ?? null }),
+      (d) => ({ id: d.id, titulo: d.titulo, ciudad: d.ciudad, direccion: d.direccion, precio: d.precio, modalidad: d.modalidad, tipo: d.tipoPropiedad, estadoComercial: d.estadoComercial, foto: d.imagenes?.find((i) => i.esPortada)?.url ?? d.imagenes?.[0]?.url ?? null }),
       () => {
         cache.delete(id) // permitir reintentar en la próxima carga
         return { id, titulo: null, missing: true }
@@ -20,7 +20,7 @@ function load(id) {
 }
 
 /**
- * Resumen { titulo, ciudad, direccion, precio, modalidad, foto } de cada propiedad, por id (`GET /propiedades/{id}`).
+ * Resumen { titulo, ciudad, direccion, precio, modalidad, tipo, estadoComercial, foto } de cada propiedad, por id (`GET /propiedades/{id}`).
  * Devuelve un objeto { [id]: resumen } que se va llenando a medida que llegan las respuestas.
  */
 export function usePropertySummaries(ids) {

@@ -1,0 +1,603 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - Microservicio de Visitas",
+    "description": "Agenda, consulta y gestiona el ciclo de vida de las visitas a propiedades.\n\n- Fechas en ISO-8601 sin zona horaria (`2026-10-20T10:00:00`); \"ahora\" se interpreta en `America/Bogota`.\n- Cada visita dura `visitas.duracion-minutos` (60 por defecto) y debe caer entre la apertura y el cierre.\n- Los endpoints públicos que requieren usuario leen los headers `X-User-Id` y `X-User-Role` inyectados por el Gateway.\n",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8085",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Visitas",
+      "description": "Endpoints públicos expuestos a través del Gateway"
+    },
+    {
+      "name": "Visitas (interno)",
+      "description": "Servicio a servicio, los consume Leads. No se exponen por el Gateway"
+    }
+  ],
+  "paths": {
+    "/internal/visitas/reservar": {
+      "post": {
+        "tags": [
+          "Visitas (interno)"
+        ],
+        "summary": "Reservar una visita",
+        "description": "Crea una visita en estado PROGRAMADA. En la respuesta `nombreAgente` es null. Lead debe decidir qué hacer usando el campo `codigo` del error.",
+        "operationId": "reservar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservarVisitaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Visita creada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SOLICITUD_INVALIDA, FECHA_INVALIDA (no es futura) o FUERA_DE_HORARIO",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VISITA_YA_EXISTE, PROPIEDAD_OCUPADA o AGENTE_OCUPADO",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/visitas/{id}/estado": {
+      "patch": {
+        "tags": [
+          "Visitas"
+        ],
+        "summary": "Cambiar el estado de una visita",
+        "description": "Transiciones válidas: PROGRAMADA → REALIZADA (solo si la visita ya ocurrió) y PROGRAMADA → CANCELADA.\nREALIZADA y CANCELADA son estados finales.\n\nPermisos: el agente asignado y ADMINISTRADOR_CENTRAL pueden pasar a REALIZADA o CANCELADA;\nel cliente de la visita solo puede CANCELADA.",
+        "operationId": "cambiarEstado",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID de la visita",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoVisitaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Visita actualizada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SOLICITUD_INVALIDA: `nuevoEstado` nulo o no reconocido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CONTEXTO_INVALIDO: headers ausentes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESO_NO_AUTORIZADO: el usuario no tiene permiso sobre la visita",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "VISITA_NO_ENCONTRADA",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TRANSICION_INVALIDA: la visita no está PROGRAMADA, se pide PROGRAMADA o se marca REALIZADA antes de que ocurra",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/visitas/propiedad/{propiedadId}/ocupacion": {
+      "get": {
+        "tags": [
+          "Visitas"
+        ],
+        "summary": "Ocupación de una propiedad en un día",
+        "description": "Devuelve los bloques horarios ocupados de la propiedad, ordenados por fechaHora. Excluye visitas canceladas. No requiere headers de contexto.",
+        "operationId": "obtenerOcupacion",
+        "parameters": [
+          {
+            "name": "propiedadId",
+            "in": "path",
+            "description": "ID de la propiedad",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "fecha",
+            "in": "query",
+            "description": "Día a consultar (yyyy-MM-dd)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-10-20"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bloques ocupados del día",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OcupacionResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SOLICITUD_INVALIDA: falta `fecha` o tiene formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/visitas/mis-visitas": {
+      "get": {
+        "tags": [
+          "Visitas"
+        ],
+        "summary": "Listar mis visitas",
+        "description": "Rol CLIENTE: visitas donde es el cliente. Cualquier otro rol: visitas donde es el agente asignado. Ordenadas por fechaHora, con nombreAgente resuelto desde el servicio de Usuarios.",
+        "operationId": "listarMisVisitas",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Filtra por estado. Sin valor devuelve todos",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado de una visita. REALIZADA y CANCELADA son estados finales",
+              "enum": [
+                "PROGRAMADA",
+                "REALIZADA",
+                "CANCELADA"
+              ]
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "description": "Inicio del rango. Por defecto: hoy a las 00:00 (Bogotá)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-20T00:00:00"
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "description": "Fin del rango. Por defecto: desde + 30 días",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-11-19T00:00:00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visitas del usuario",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VisitaResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "FECHA_INVALIDA (`desde` posterior a `hasta`) o SOLICITUD_INVALIDA (formato inválido)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CONTEXTO_INVALIDO: headers ausentes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/visitas/agentes-ocupados": {
+      "get": {
+        "tags": [
+          "Visitas (interno)"
+        ],
+        "summary": "Agentes ocupados en un horario",
+        "description": "De la lista de agentes, devuelve los que ya tienen una visita que se solapa con el horario indicado.",
+        "operationId": "agentesOcupados",
+        "parameters": [
+          {
+            "name": "agenteIds",
+            "in": "query",
+            "description": "Agentes candidatos. Se envía repetido o separado por comas",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "fechaHora",
+            "in": "query",
+            "description": "Inicio de la visita que se quiere agendar",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-10-20T09:00:00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agentes ocupados (subconjunto de agenteIds)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentesOcupadosResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "FECHA_INVALIDA (no es futura), FUERA_DE_HORARIO o SOLICITUD_INVALIDA",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/visitas/lead/{leadId}": {
+      "delete": {
+        "tags": [
+          "Visitas (interno)"
+        ],
+        "summary": "Cancelar la visita de un lead",
+        "description": "Cancela la visita PROGRAMADA asociada al lead. Idempotente: si no tiene visita programada no hace nada.",
+        "operationId": "cancelarPorLead",
+        "parameters": [
+          {
+            "name": "leadId",
+            "in": "path",
+            "description": "ID del lead",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cancelada (o no había nada que cancelar)"
+          },
+          "400": {
+            "description": "SOLICITUD_INVALIDA: `leadId` no es un UUID válido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ReservarVisitaRequest": {
+        "type": "object",
+        "description": "Datos para reservar una visita (lo envía Leads)",
+        "properties": {
+          "leadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Lead que origina la visita"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Propiedad a visitar"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Cliente que asistirá"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Agente que atenderá la visita"
+          },
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inicio de la visita (se trunca a minutos). Debe ser futura y dentro del horario de atención",
+            "example": "2026-10-20T09:00:00"
+          }
+        },
+        "required": [
+          "agenteId",
+          "clienteId",
+          "fechaHora",
+          "leadId",
+          "propiedadId"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Respuesta de error estándar",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "Código estable del error",
+            "enum": [
+              "CONTEXTO_INVALIDO",
+              "ACCESO_NO_AUTORIZADO",
+              "VISITA_NO_ENCONTRADA",
+              "FECHA_INVALIDA",
+              "FUERA_DE_HORARIO",
+              "AGENTE_OCUPADO",
+              "PROPIEDAD_OCUPADA",
+              "VISITA_YA_EXISTE",
+              "TRANSICION_INVALIDA",
+              "SOLICITUD_INVALIDA"
+            ],
+            "example": "AGENTE_OCUPADO"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje legible",
+            "example": "El agente ya tiene una visita en ese horario"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código HTTP",
+            "example": 409
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Momento del error",
+            "example": "2026-10-16T14:30:00"
+          }
+        }
+      },
+      "VisitaResponse": {
+        "type": "object",
+        "description": "Visita agendada",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID de la visita"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Propiedad a visitar"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Cliente que asiste"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Agente asignado"
+          },
+          "nombreAgente": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Nombre del agente (servicio de Usuarios). Null al reservar o si no se pudo resolver",
+            "example": "Laura Gómez"
+          },
+          "leadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Lead que originó la visita"
+          },
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inicio de la visita",
+            "example": "2026-10-20T09:00:00"
+          },
+          "fechaHoraFin": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fin de la visita (inicio + duración configurada)",
+            "example": "2026-10-20T10:00:00"
+          },
+          "estadoVisita": {
+            "type": "string",
+            "description": "Estado actual",
+            "enum": [
+              "PROGRAMADA",
+              "REALIZADA",
+              "CANCELADA"
+            ]
+          }
+        }
+      },
+      "CambiarEstadoVisitaRequest": {
+        "type": "object",
+        "description": "Petición para cambiar el estado de una visita",
+        "properties": {
+          "nuevoEstado": {
+            "type": "string",
+            "description": "Estado destino: REALIZADA o CANCELADA",
+            "enum": [
+              "PROGRAMADA",
+              "REALIZADA",
+              "CANCELADA"
+            ],
+            "example": "REALIZADA"
+          }
+        },
+        "required": [
+          "nuevoEstado"
+        ]
+      },
+      "OcupacionResponse": {
+        "type": "object",
+        "description": "Bloque horario ocupado de una propiedad",
+        "properties": {
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inicio del bloque",
+            "example": "2026-10-20T09:00:00"
+          },
+          "fechaHoraFin": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fin del bloque",
+            "example": "2026-10-20T10:00:00"
+          }
+        }
+      },
+      "AgentesOcupadosResponse": {
+        "type": "object",
+        "description": "Agentes que ya tienen una visita en el horario consultado",
+        "properties": {
+          "agentesIds": {
+            "type": "array",
+            "description": "IDs de los agentes ocupados. Vacío si todos están libres",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    }
+  }
+}

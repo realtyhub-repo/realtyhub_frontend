@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ChevronRight,
   Contact,
+  FileText,
   House,
   LayoutGrid,
   LayoutList,
@@ -54,14 +55,14 @@ const NAV_GROUPS = [
   {
     title: 'Clientes',
     items: [
-      { to: '/panel/leads', label: 'Leads', icon: Contact, roles: [ADMIN, GERENTE, AGENTE] },
-      { to: '/panel/visitas', label: 'Agenda de visitas', icon: CalendarDays, roles: [ADMIN, GERENTE, AGENTE] },
+      { to: '/panel/leads', label: 'Leads', icon: Contact, roles: [ADMIN, AGENTE] },
+      { to: '/panel/visitas', label: 'Agenda', icon: CalendarDays, roles: [ADMIN, GERENTE, AGENTE] },
     ],
   },
 ]
 
 // Módulos aún no disponibles en el frontend: se muestran deshabilitados para anticipar la navegación.
-const UPCOMING = []
+const UPCOMING = [{ label: 'Contratos', icon: FileText, roles: [ADMIN, AGENTE] }]
 
 // Título de cada ruta para el breadcrumb de la barra superior.
 const ROUTE_TITLES = [
@@ -169,8 +170,9 @@ export function PanelLayout() {
 
 /** Contenido del sidebar: se reutiliza en escritorio (fijo) y en móvil (panel lateral). */
 function Sidebar({ groups, displayName, roleLabel, photo, onNavigate }) {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
+  const upcoming = UPCOMING.filter((i) => !i.roles || i.roles.includes(user?.rol))
   const [leaving, setLeaving] = useState(false)
 
   async function handleLogout() {
@@ -222,9 +224,9 @@ function Sidebar({ groups, displayName, roleLabel, photo, onNavigate }) {
           </NavGroup>
         ))}
 
-        {UPCOMING.length > 0 && (
+        {upcoming.length > 0 && (
           <NavGroup title="Próximamente">
-            {UPCOMING.map(({ label, icon: Icon }) => (
+            {upcoming.map(({ label, icon: Icon }) => (
               <li
                 key={label}
                 className={cn(navItem, 'cursor-default text-floral-white/40')}

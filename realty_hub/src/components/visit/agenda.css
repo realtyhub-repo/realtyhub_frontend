@@ -1,0 +1,168 @@
+/*
+ * Re-tema de Schedule-X (tema por defecto Material, morado) con los tokens de RealtyHub (CLAUDE.md §2–§4):
+ * superficies floral-white, líneas ash-grey, acento evergreen, Roboto en la grilla y Montserrat en cifras.
+ * Todo queda acotado a `.rh-agenda` para no filtrar estilos al resto del panel. Se importa después de
+ * `@schedule-x/theme-default/dist/calendar.css` (ver AgendaCalendar.jsx).
+ */
+
+.rh-agenda {
+  --sx-color-primary: var(--evergreen);
+  --sx-color-on-primary: var(--floral-white);
+  --sx-color-primary-container: color-mix(in srgb, var(--pale-oak) 45%, var(--floral-white));
+  --sx-color-on-primary-container: var(--evergreen);
+  --sx-color-secondary: var(--emerald-depths);
+  --sx-color-on-secondary: var(--floral-white);
+  --sx-color-secondary-container: color-mix(in srgb, var(--pale-oak) 30%, var(--floral-white));
+  --sx-color-on-secondary-container: var(--evergreen);
+  --sx-color-tertiary: var(--emerald-depths);
+  --sx-color-on-tertiary: var(--floral-white);
+  --sx-color-tertiary-container: color-mix(in srgb, var(--pale-oak) 30%, var(--floral-white));
+  --sx-color-on-tertiary-container: var(--evergreen);
+  --sx-color-surface: var(--floral-white);
+  --sx-color-surface-dim: color-mix(in srgb, var(--pale-oak) 35%, var(--floral-white));
+  --sx-color-surface-bright: var(--floral-white);
+  --sx-color-on-surface: var(--evergreen);
+  --sx-color-surface-container: color-mix(in srgb, var(--pale-oak) 18%, var(--floral-white));
+  --sx-color-surface-container-low: color-mix(in srgb, var(--pale-oak) 10%, var(--floral-white));
+  --sx-color-surface-container-high: color-mix(in srgb, var(--pale-oak) 28%, var(--floral-white));
+  --sx-color-background: var(--floral-white);
+  --sx-color-on-background: var(--evergreen);
+  --sx-color-outline: var(--muted-foreground);
+  --sx-color-outline-variant: color-mix(in srgb, var(--ash-grey) 55%, var(--floral-white));
+  --sx-color-shadow: var(--evergreen);
+  --sx-color-surface-tint: var(--evergreen);
+  --sx-color-neutral: var(--muted-foreground);
+  --sx-internal-color-text: var(--evergreen);
+  --sx-internal-color-gray-ripple-background: color-mix(in srgb, var(--pale-oak) 35%, transparent);
+  --sx-internal-color-light-gray: color-mix(in srgb, var(--pale-oak) 20%, var(--floral-white));
+  --sx-rounding-extra-small: var(--radius-control);
+  --sx-rounding-small: var(--radius-card);
+  --sx-box-shadow-level3: var(--shadow-brand);
+  --sx-border: 1px solid color-mix(in srgb, var(--ash-grey) 50%, var(--floral-white));
+  --sx-calendar-header-input-font-size: 14px;
+
+  font-family: var(--font-sans);
+}
+
+.rh-agenda .sx-react-calendar-wrapper {
+  height: min(78svh, 860px);
+  min-height: 560px;
+}
+
+.rh-agenda .sx__calendar {
+  border-color: color-mix(in srgb, var(--ash-grey) 60%, var(--floral-white));
+}
+
+/* Cabecera: rango de la semana en Montserrat, controles con el mismo tratamiento que los botones outline */
+.rh-agenda .sx__calendar-header {
+  padding: 16px 20px;
+  border-bottom: var(--sx-border);
+  align-items: center;
+}
+.rh-agenda .sx__range-heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  max-width: none;
+}
+.rh-agenda .sx__range-heading::first-letter {
+  text-transform: uppercase;
+}
+.rh-agenda .sx__today-button,
+.rh-agenda .sx__view-selection-selected-item,
+.rh-agenda .sx__date-input {
+  border: 1px solid var(--ash-grey);
+  border-radius: var(--radius-control);
+  font-weight: 500;
+  transition:
+    background-color 150ms ease-out,
+    border-color 150ms ease-out;
+}
+.rh-agenda .sx__today-button:hover,
+.rh-agenda .sx__view-selection-selected-item:hover {
+  border-color: var(--evergreen);
+  background-color: color-mix(in srgb, var(--pale-oak) 25%, transparent);
+}
+.rh-agenda .sx__chevron-wrapper {
+  border-radius: var(--radius-control);
+}
+.rh-agenda .sx__chevron-wrapper:hover {
+  background-color: color-mix(in srgb, var(--pale-oak) 30%, transparent);
+}
+.rh-agenda :is(.sx__today-button, .sx__chevron-wrapper, .sx__view-selection-selected-item, .sx__date-input):focus-visible {
+  outline: 2px solid var(--emerald-depths);
+  outline-offset: 2px;
+}
+
+/* Días de la semana: sin mayúsculas sostenidas (CLAUDE.md §3); hoy con el número en evergreen */
+.rh-agenda .sx__week-grid__day-name {
+  text-transform: none;
+  font-size: 12px;
+  font-weight: 500;
+}
+.rh-agenda .sx__week-grid__day-name::first-letter {
+  text-transform: uppercase;
+}
+.rh-agenda .sx__week-grid__date-number {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--evergreen);
+  border-radius: var(--radius-control);
+}
+.rh-agenda .sx__week-grid__date--is-today .sx__week-grid__date-number {
+  border-radius: var(--radius-control);
+  color: var(--floral-white);
+}
+.rh-agenda .sx__week-header {
+  border-bottom: var(--sx-border);
+}
+
+.rh-agenda .sx__week-grid__hour-text {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+/* Hoy: columna apenas teñida de pale-oak */
+.rh-agenda .sx__time-grid-day:has(.sx__current-time-indicator) {
+  background-color: color-mix(in srgb, var(--pale-oak) 12%, transparent);
+}
+
+/* Hora actual en terracota (estado semántico), no el rojo puro por defecto */
+.rh-agenda .sx__current-time-indicator {
+  background-color: var(--error);
+  height: 1.5px;
+}
+.rh-agenda .sx__current-time-indicator::before {
+  background-color: var(--error);
+}
+
+/* Bloques de visita: el contenido lo dibuja AgendaEvent; aquí solo se limpia la caja de Schedule-X */
+.rh-agenda .sx__time-grid-event {
+  padding: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  border: 0;
+  overflow: visible;
+  cursor: pointer;
+}
+.rh-agenda .sx__time-grid-event-inner {
+  height: 100%;
+}
+.rh-agenda .sx__time-grid-event:focus-visible {
+  outline: 2px solid var(--emerald-depths);
+  outline-offset: 1px;
+}
+
+/* Selector de fecha y de vista de la cabecera */
+.rh-agenda .sx__date-picker-popup,
+.rh-agenda .sx__view-selection-items {
+  background-color: var(--floral-white);
+  border: 1px solid color-mix(in srgb, var(--ash-grey) 60%, var(--floral-white));
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-brand);
+}
+.rh-agenda .sx__date-picker__day-name,
+.rh-agenda .sx__date-picker__month-view-header__month-year {
+  text-transform: none;
+}

@@ -1,63 +1,73 @@
 import { addDays, startOfDay, subDays } from 'date-fns'
-import { Check, ChevronLeft, ExternalLink, Mail, Phone } from 'lucide-react'
+import { CalendarDays, Check, ChevronLeft, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { ESTADOS_LEAD, ESTADOS_LEAD_TERMINALES, cambiarEstadoLead, getLead } from '@/api/leadApi'
 import { getPropiedad } from '@/api/propertyApi'
 import { listMisVisitas } from '@/api/visitaApi'
+import { useAuth } from '@/auth/auth-context'
+import { ClientContact } from '@/components/lead/ClientContact'
 import { ConfirmDialog } from '@/components/panel/ConfirmDialog'
-import { EmptyState, ListSkeleton, LoadError } from '@/components/panel/States'
+import { LoadError } from '@/components/panel/States'
 import { useToast } from '@/components/panel/Toast'
 import { PropertyPhoto } from '@/components/property/PropertyPhoto'
 import { Alert } from '@/components/ui/alert'
-import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
-import { VisitList } from '@/components/visit/VisitList'
 import { useAsync } from '@/hooks/useAsync'
 import { formatDate } from '@/lib/format'
 import { MODALIDAD_FRASE, TIPO_LABELS, formatPrice } from '@/lib/property'
 import { cn } from '@/lib/utils'
-import { ESTADO_LEAD_BADGE, ESTADO_LEAD_LABELS, nowInBogota, parseLocal, toLocalDateTime } from '@/lib/visit'
+import {
+  CONFIRMAR_ESTADO_LEAD,
+  ESTADO_LEAD_BADGE,
+  ESTADO_LEAD_LABELS,
+  ESTADO_VISITA_BADGE,
+  ESTADO_VISITA_LABELS,
+  formatRange,
+  formatShortDay,
+  leadErrorMessage,
+  nowInBogota,
+  parseLocal,
+  toLocalDateTime,
+} from '@/lib/visit'
 
-/** Camino principal del embudo; DESCARTADO puede llegar desde cualquier etapa. */
-const EMBUDO = ESTADOS_LEAD.filter((e) => e !== 'DESCARTADO')
-
-/** Cambios que merecen confirmación: los terminales no se pueden deshacer y OFERTA_ACEPTADA genera el contrato. */
-const CONFIRMAR = {
-  CERRADO: 'El lead quedará cerrado y ya no se podrá modificar.',
-  DESCARTADO: 'El lead quedará descartado y ya no se podrá modificar.',
-  OFERTA_ACEPTADA: 'Se generará el borrador del contrato para este cliente y esta propiedad.',
-}
+/** Camino principal del pipeline; DESCARTADO puede llegar desde cualquier etapa. */
+const PIPELINE = ESTADOS_LEAD.filter((e) => e !== 'DESCARTADO')
 
 /**
- * Detalle de un lead (`GET /leads/{id}`): datos de contacto del cliente, propiedad, visitas y estado del embudo.
- * Solo el agente dueño o un administrador (docs/lead-service.md); el backend responde 403 a los demás.
+ * Detalle de un lead (`GET /leads/{id}`, docs/leads-service.md §3): contacto del cliente, propiedad, visitas y
+ * estado. Solo el agente asignado o un administrador central; el backend responde 403 a los demás.
  */
 export default function LeadDetailPage() {
   const { id } = useParams()
+  const { user } = useAuth()
   const [toast, showToast] = useToast()
   const [nuevoEstado, setNuevoEstado] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [contractNotice, setContractNotice] = useState(false)
 
   const data = useAsync((signal) => getLead(id, { signal }), [id])
   const lead = data.data
   const propiedad = useAsync((signal) => (lead ? getPropiedad(lead.propiedadId, { signal }) : Promise.resolve(null)), [lead?.propiedadId])
+  // Visitas del lead en la agenda del agente autenticado (mis-visitas filtra por agente; un admin ve las suyas).
   const visitas = useAsync(
     (signal) => {
-      if (!lead) return Promise.resolve([])
-      const desde = lead.createdAt ? startOfDay(parseLocal(lead.createdAt) ?? nowInBogota()) : subDays(startOfDay(nowInBogota()), 90)
-      return listMisVisitas({ signal, desde: toLocalDateTime(desde), hasta: toLocalDateTime(addDays(startOfDay(nowInBogota()), 120)) }).then(
-        (list) => (list ?? []).filter((v) => v.leadId === lead.id),
+      if (!lead || user.rol === 'ADMINISTRADOR_CENTRAL') return Promise.resolve([])
+      const today = startOfDay(nowInBogota())
+      const desde = startOfDay(parseLocal(lead.createdAt) ?? subDays(today, 90))
+      return listMisVisitas({ signal, desde: toLocalDateTime(desde), hasta: toLocalDateTime(addDays(today, 90)) }).then((list) =>
+        (list ?? []).filter((v) => v.leadId === lead.id),
       )
     },
     [lead?.id],
   )
 
   if (data.error && !lead) {
+    const codigo = data.error.codigo
     return (
       <div className="max-w-6xl space-y-6">
         <BackLink />
@@ -65,12 +75,12 @@ export default function LeadDetailPage() {
           <Alert variant="warning">
             <p>Este lead no existe o el enlace está incompleto.</p>
           </Alert>
-        ) : data.error.status === 403 ? (
+        ) : data.error.status === 403 || codigo === 'ACCESO_NO_AUTORIZADO' ? (
           <Alert variant="warning">
-            <p>Este lead está asignado a otro agente. Solo el agente a cargo o un administrador central pueden verlo.</p>
+            <p>{leadErrorMessage({ codigo: 'ACCESO_NO_AUTORIZADO' })} Solo el agente a cargo o un administrador central pueden ver este lead.</p>
           </Alert>
         ) : (
-          <LoadError error={data.error} onRetry={data.reload} />
+          <LoadError error={{ ...data.error, mensaje: leadErrorMessage(data.error) }} onRetry={data.reload} />
         )}
       </div>
     )
@@ -85,9 +95,16 @@ export default function LeadDetailPage() {
     setSaveError(null)
     try {
       await cambiarEstadoLead(lead.id, nuevoEstado)
-      data.setData((l) => ({ ...l, estado: nuevoEstado }))
-      showToast(`Estado actualizado a ${ESTADO_LEAD_LABELS[nuevoEstado].toLowerCase()}`)
+      // 204 sin body: se vuelve a pedir el lead para mostrar lo que dice el servidor.
+      const fresh = await getLead(lead.id)
+      data.setData(fresh)
+      if (nuevoEstado === 'OFERTA_ACEPTADA') setContractNotice(true)
+      else showToast(`Estado actualizado a ${ESTADO_LEAD_LABELS[fresh?.estado ?? nuevoEstado].toLowerCase()}`)
       setNuevoEstado('')
+    } catch (err) {
+      // ESTADO_TERMINAL: el lead ya estaba cerrado o descartado; al recargar desaparece el selector.
+      if (err?.codigo === 'ESTADO_TERMINAL') data.reload()
+      throw Object.assign(err, { mensaje: leadErrorMessage(err) })
     } finally {
       setSaving(false)
     }
@@ -95,7 +112,7 @@ export default function LeadDetailPage() {
 
   function solicitarCambio() {
     if (!nuevoEstado) return
-    if (CONFIRMAR[nuevoEstado]) setConfirming(true)
+    if (CONFIRMAR_ESTADO_LEAD[nuevoEstado]) setConfirming(true)
     else guardarEstado().catch(setSaveError)
   }
 
@@ -103,18 +120,22 @@ export default function LeadDetailPage() {
     <div className="max-w-6xl space-y-8">
       <BackLink />
 
-      <header className="flex flex-col gap-4 border-b border-ash-grey/50 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <Badge variant={ESTADO_LEAD_BADGE[lead.estado] ?? 'outline'} dot>
-            {ESTADO_LEAD_LABELS[lead.estado] ?? lead.estado}
-          </Badge>
-          <h1 className="text-page leading-tight text-evergreen">{lead.nombreCliente ?? 'Cliente'}</h1>
-          <p className="text-muted-foreground">
-            Interesado en {p?.titulo ?? 'la propiedad'}
-            {lead.createdAt && ` · desde el ${formatDate(lead.createdAt, { dateStyle: 'long' })}`}
-          </p>
-        </div>
+      <header className="space-y-3 border-b border-ash-grey/50 pb-6">
+        <Badge variant={ESTADO_LEAD_BADGE[lead.estado] ?? 'outline'} dot>
+          {ESTADO_LEAD_LABELS[lead.estado] ?? lead.estado}
+        </Badge>
+        <h1 className="text-page leading-tight text-evergreen">{lead.nombreCliente || 'Cliente'}</h1>
+        <p className="max-w-[75ch] text-muted-foreground">
+          Interesado en {p?.titulo ?? 'la propiedad'}
+          {lead.createdAt && ` · desde el ${formatDate(lead.createdAt, { dateStyle: 'long' })}`}
+        </p>
       </header>
+
+      {contractNotice && (
+        <Alert variant="success">
+          <p>Oferta aceptada. El borrador del contrato se está generando y estará disponible en Contratos en unos segundos.</p>
+        </Alert>
+      )}
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-10">
@@ -122,51 +143,7 @@ export default function LeadDetailPage() {
             <h2 id="contacto" className="text-section leading-tight text-evergreen">
               Contacto
             </h2>
-            <div className="flex flex-col gap-5 rounded-card border border-ash-grey/60 p-5 sm:flex-row sm:items-center">
-              <div className="flex min-w-0 flex-1 items-center gap-4">
-                <Avatar name={lead.nombreCliente ?? ''} className="size-12 text-body" />
-                <div className="min-w-0">
-                  <p className="truncate font-display text-subtitle font-semibold leading-tight text-evergreen">{lead.nombreCliente ?? 'Sin nombre'}</p>
-                  <p className="text-small text-muted-foreground">Cliente</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {lead.telefonoCliente && (
-                  <a href={`tel:${lead.telefonoCliente}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                    <Phone strokeWidth={1.75} aria-hidden="true" />
-                    {lead.telefonoCliente}
-                  </a>
-                )}
-                {lead.emailCliente && (
-                  <a href={`mailto:${lead.emailCliente}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                    <Mail strokeWidth={1.75} aria-hidden="true" />
-                    {lead.emailCliente}
-                  </a>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section aria-labelledby="visitas-lead" className="space-y-4">
-            <h2 id="visitas-lead" className="text-section leading-tight text-evergreen">
-              Visitas
-            </h2>
-            {visitas.error ? (
-              <LoadError error={visitas.error} onRetry={visitas.reload} />
-            ) : visitas.loading && !visitas.data ? (
-              <ListSkeleton rows={2} />
-            ) : visitas.data?.length ? (
-              <VisitList
-                visitas={visitas.data}
-                showProperty={false}
-                onChanged={(updated, estado) => {
-                  visitas.setData((list) => list.map((v) => (v.id === updated.id ? updated : v)))
-                  showToast(estado === 'REALIZADA' ? 'Visita marcada como realizada' : 'Visita cancelada')
-                }}
-              />
-            ) : (
-              <EmptyState title="Este lead no tiene visitas en tu agenda" text="El cliente puede agendar otra visita desde su cuenta." />
-            )}
+            <ClientContact lead={lead} />
           </section>
 
           <section aria-labelledby="propiedad-lead" className="space-y-4">
@@ -176,7 +153,7 @@ export default function LeadDetailPage() {
             {propiedad.error ? (
               <LoadError error={propiedad.error} onRetry={propiedad.reload} />
             ) : !p ? (
-              <span className="block h-32 animate-pulse rounded-card bg-pale-oak/25" />
+              <span className="block h-40 animate-pulse rounded-card bg-pale-oak/25" />
             ) : (
               <Link
                 to={`/propiedades/${p.id}`}
@@ -185,7 +162,8 @@ export default function LeadDetailPage() {
                 <PropertyPhoto
                   src={p.imagenes?.find((i) => i.esPortada)?.url ?? p.imagenes?.[0]?.url}
                   alt=""
-                  className="aspect-[4/3] w-full shrink-0 sm:w-56"
+                  className="aspect-[4/3] w-full shrink-0 sm:w-64"
+                  imgClassName="transition-transform duration-200 group-hover:scale-[1.02]"
                 />
                 <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 p-5">
                   <p className="text-small font-medium text-emerald-depths">
@@ -205,12 +183,54 @@ export default function LeadDetailPage() {
               </Link>
             )}
           </section>
+
+          {user.rol !== 'ADMINISTRADOR_CENTRAL' && (
+            <section aria-labelledby="visitas-lead" className="space-y-4">
+              <div className="flex items-baseline justify-between gap-4">
+                <h2 id="visitas-lead" className="text-section leading-tight text-evergreen">
+                  Visitas
+                </h2>
+                <Link to="/panel/visitas" className="inline-flex items-center gap-1.5 text-small font-medium text-emerald-depths hover:text-evergreen hover:underline">
+                  <CalendarDays className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                  Abrir agenda
+                </Link>
+              </div>
+              {visitas.error ? (
+                <LoadError error={visitas.error} onRetry={visitas.reload} />
+              ) : visitas.loading && !visitas.data ? (
+                <span className="block h-24 animate-pulse rounded-card bg-pale-oak/25" />
+              ) : visitas.data?.length ? (
+                <ul className="divide-y divide-ash-grey/40 rounded-card border border-ash-grey/60">
+                  {visitas.data.map((v) => {
+                    const inicio = parseLocal(v.fechaHora)
+                    return (
+                      <li key={v.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                        <div className="min-w-0">
+                          <p className={cn('font-medium tabular-nums', v.estadoVisita === 'CANCELADA' ? 'text-ash-grey line-through' : 'text-evergreen')}>
+                            {formatRange(inicio, parseLocal(v.fechaHoraFin))}
+                          </p>
+                          <p className="text-small text-muted-foreground">{formatShortDay(inicio)}</p>
+                        </div>
+                        <Badge variant={ESTADO_VISITA_BADGE[v.estadoVisita] ?? 'outline'} dot>
+                          {ESTADO_VISITA_LABELS[v.estadoVisita] ?? v.estadoVisita}
+                        </Badge>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="rounded-card border border-dashed border-ash-grey px-5 py-6 text-small text-muted-foreground">
+                  Este lead no tiene visitas recientes en tu agenda. El cliente puede agendar otra desde su cuenta.
+                </p>
+              )}
+            </section>
+          )}
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="space-y-6 rounded-card bg-pale-oak/25 p-6">
-            <h2 className="font-display text-subtitle font-semibold text-evergreen">Embudo</h2>
-            <Funnel estado={lead.estado} />
+            <h2 className="font-display text-subtitle font-semibold text-evergreen">Pipeline</h2>
+            <Pipeline estado={lead.estado} />
 
             {terminal ? (
               <p className="border-t border-evergreen/10 pt-5 text-small text-muted-foreground">
@@ -236,6 +256,9 @@ export default function LeadDetailPage() {
                     </option>
                   ))}
                 </Select>
+                {nuevoEstado === 'OFERTA_ACEPTADA' && (
+                  <p className="text-meta text-muted-foreground">Al guardar se generará el borrador del contrato.</p>
+                )}
                 {saveError && (
                   <Alert variant="error">
                     <p>{saveError.mensaje}</p>
@@ -253,10 +276,10 @@ export default function LeadDetailPage() {
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
-        title={`Pasar a ${ESTADO_LEAD_LABELS[nuevoEstado]?.toLowerCase() ?? ''}`}
-        description={CONFIRMAR[nuevoEstado]}
+        title={CONFIRMAR_ESTADO_LEAD[nuevoEstado]?.title}
+        description={CONFIRMAR_ESTADO_LEAD[nuevoEstado]?.text}
         confirmLabel="Actualizar estado"
-        destructive={nuevoEstado === 'DESCARTADO'}
+        destructive={CONFIRMAR_ESTADO_LEAD[nuevoEstado]?.destructive}
         onConfirm={guardarEstado}
       />
       {toast}
@@ -264,18 +287,18 @@ export default function LeadDetailPage() {
   )
 }
 
-/** Etapas del embudo: completadas con check, la actual resaltada. DESCARTADO atenúa todo el camino. */
-function Funnel({ estado }) {
+/** Etapas del pipeline: completadas con check, la actual resaltada. DESCARTADO atenúa todo el camino. */
+function Pipeline({ estado }) {
   const descartado = estado === 'DESCARTADO'
-  const current = EMBUDO.indexOf(estado)
+  const current = PIPELINE.indexOf(estado)
   return (
-    <ol className="space-y-0">
-      {EMBUDO.map((e, i) => {
+    <ol>
+      {PIPELINE.map((e, i) => {
         const done = !descartado && i < current
         const active = !descartado && i === current
         return (
           <li key={e} className="relative flex items-center gap-3 pb-4 last:pb-0">
-            {i < EMBUDO.length - 1 && (
+            {i < PIPELINE.length - 1 && (
               <span className={cn('absolute left-[11px] top-6 h-[calc(100%-16px)] w-px', done ? 'bg-evergreen' : 'bg-ash-grey/70')} aria-hidden="true" />
             )}
             <span
@@ -312,7 +335,7 @@ function BackLink() {
   return (
     <Link to="/panel/leads" className="inline-flex items-center gap-1 text-small text-muted-foreground transition-colors duration-150 hover:text-evergreen">
       <ChevronLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
-      Todos los leads
+      Pipeline de leads
     </Link>
   )
 }

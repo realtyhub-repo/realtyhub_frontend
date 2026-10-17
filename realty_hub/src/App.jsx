@@ -63,7 +63,7 @@ export default function App() {
             <Route path="/panel" element={<PanelLayout />}>
               <Route index element={<PanelHomePage />} />
               <Route path="perfil" element={<ProfilePage />} />
-              {/* Visitas: el CLIENTE ve las suyas; los demás roles, las que tienen asignadas (docs/visitas-service.md) */}
+              {/* Visitas: el CLIENTE ve las suyas; los demás roles, su agenda semanal (docs/visits-service.md) */}
               <Route path="visitas" element={<VisitsPage />} />
               <Route element={<RequireAuth roles={['ADMINISTRADOR_CENTRAL']} />}>
                 <Route path="usuarios" element={<UsersPage />} />
@@ -77,7 +77,9 @@ export default function App() {
                 <Route path="propiedades" element={<PropertiesPage />} />
                 <Route path="propiedades/nueva" element={<PropertyCreatePage />} />
                 <Route path="propiedades/:id" element={<PropertyManagePage />} />
-                {/* Leads: asignados al agente autenticado (docs/lead-service.md) */}
+              </Route>
+              {/* Leads: pipeline del agente; el admin central puede abrir y mover cualquier lead (docs/leads-service.md) */}
+              <Route element={<RequireAuth roles={['ADMINISTRADOR_CENTRAL', 'AGENTE']} />}>
                 <Route path="leads" element={<LeadsPage />} />
                 <Route path="leads/:id" element={<LeadDetailPage />} />
               </Route>
