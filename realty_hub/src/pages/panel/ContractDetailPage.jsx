@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { cancelarContrato, getContrato, getDocumento } from '@/api/contratoApi'
 import { useAuth } from '@/auth/auth-context'
+import { ContractCommissionLink } from '@/components/commission/ContractCommissionLink'
 import { DownloadSignedButton } from '@/components/contract/DownloadSignedButton'
 import { EditPriceDialog } from '@/components/contract/EditPriceDialog'
 import { PdfPreviewDialog } from '@/components/contract/PdfPreviewDialog'
@@ -202,6 +203,7 @@ export default function ContractDetailPage() {
             <Row label="País" value={c.pais} />
           </dl>
 
+          {firmado && manage && <ContractCommissionLink contrato={c} />}
           {firmado && <DocumentFingerprint contratoId={c.id} />}
         </aside>
       </div>

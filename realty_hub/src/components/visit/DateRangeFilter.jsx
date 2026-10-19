@@ -22,14 +22,15 @@ const same = (a, b) => isSameDay(a.from, b.from) && isSameDay(a.to, b.to)
 
 /**
  * Selector de rango de días para `desde`/`hasta`. Valida antes de aplicar: con `desde` > `hasta` la API
- * respondería FECHA_INVALIDA (docs/visits-service.md §2).
+ * respondería FECHA_INVALIDA (docs/visits-service.md §2). `buildPresets(now)` cambia los rangos rápidos
+ * (por defecto, próximos días para visitas).
  */
-export function DateRangeFilter({ value, onChange }) {
+export function DateRangeFilter({ value, onChange, buildPresets = presets }) {
   const [now] = useState(nowInBogota)
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(value)
   const [error, setError] = useState(null)
-  const options = presets(now)
+  const options = buildPresets(now)
   const preset = options.find((p) => same(p, value))
 
   function apply(range) {

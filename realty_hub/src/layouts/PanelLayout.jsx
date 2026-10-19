@@ -2,9 +2,11 @@ import {
   Building,
   CalendarDays,
   ChevronRight,
+  Coins,
   Contact,
   FileText,
   House,
+  Landmark,
   LayoutGrid,
   LayoutList,
   LogOut,
@@ -61,6 +63,13 @@ const NAV_GROUPS = [
       { to: '/panel/contratos', label: 'Contratos', icon: FileText, roles: [AGENTE] },
     ],
   },
+  {
+    title: 'Finanzas',
+    items: [
+      { to: '/panel/comisiones', label: 'Comisiones', icon: Coins, roles: [ADMIN, GERENTE, AGENTE] },
+      { to: '/panel/acuerdos', label: 'Acuerdos comerciales', icon: Landmark, roles: [ADMIN, GERENTE] },
+    ],
+  },
 ]
 
 // Módulos aún no disponibles en el frontend: se muestran deshabilitados para anticipar la navegación.
@@ -81,6 +90,11 @@ const ROUTE_TITLES = [
   ['/panel/leads/:id', 'Lead'],
   ['/panel/contratos', 'Contratos'],
   ['/panel/contratos/:id', 'Contrato'],
+  ['/panel/comisiones', 'Comisiones'],
+  ['/panel/comisiones/:id', 'Comisión'],
+  ['/panel/acuerdos', 'Acuerdos comerciales'],
+  ['/panel/acuerdos/nuevo', 'Crear acuerdo'],
+  ['/panel/acuerdos/:id', 'Acuerdo comercial'],
 ]
 
 const navItem =

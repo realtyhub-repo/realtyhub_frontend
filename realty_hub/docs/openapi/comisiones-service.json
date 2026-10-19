@@ -1,0 +1,1795 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RealtyHub - Servicio de Comisiones",
+    "description": "Cálculo, aprobación, pago y reversión de comisiones por contratos firmados, y gestión de los acuerdos comerciales que definen las reglas de reparto.",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8087",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Comisiones",
+      "description": "Consulta y gestión del ciclo de vida de las comisiones"
+    },
+    {
+      "name": "Acuerdos comerciales",
+      "description": "Acuerdos con vigencia que definen las reglas de cálculo y reparto de comisiones"
+    }
+  ],
+  "paths": {
+    "/comisiones/acuerdos": {
+      "get": {
+        "tags": [
+          "Acuerdos comerciales"
+        ],
+        "summary": "Listar acuerdos comerciales",
+        "description": "Devuelve todos los acuerdos con sus reglas. Solo para el administrador central y los gerentes de oficina.",
+        "operationId": "listar",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado de acuerdos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AcuerdoResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no puede consultar acuerdos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Acuerdos comerciales"
+        ],
+        "summary": "Crear acuerdo comercial",
+        "description": "Crea un acuerdo con sus reglas por tipo de contrato. La vigencia no puede cruzarse con otro acuerdo. Solo el administrador central.",
+        "operationId": "crear",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearAcuerdoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Acuerdo creado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcuerdoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo inválido o reglas inconsistentes",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es administrador central",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "La vigencia se cruza con otro acuerdo",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones/{id}/revertir": {
+      "patch": {
+        "tags": [
+          "Comisiones"
+        ],
+        "summary": "Revertir el pago de una comisión",
+        "description": "Pasa la comisión de PAGADA a REVERTIDA registrando el motivo. Solo el administrador central.",
+        "operationId": "revertir",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la comisión",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevertirComisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Pago revertido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo o id inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es administrador central",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comisión no encontrada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Transición de estado inválida o modificación concurrente",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones/{id}/pagar": {
+      "patch": {
+        "tags": [
+          "Comisiones"
+        ],
+        "summary": "Registrar el pago de una comisión",
+        "description": "Pasa la comisión de APROBADA a PAGADA guardando la referencia de pago. Solo el administrador central.",
+        "operationId": "pagar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la comisión",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagarComisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Pago registrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo o id inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es administrador central",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comisión no encontrada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Transición de estado inválida o modificación concurrente",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones/{id}/aprobar": {
+      "patch": {
+        "tags": [
+          "Comisiones"
+        ],
+        "summary": "Aprobar una comisión",
+        "description": "Pasa la comisión de PENDIENTE a APROBADA. Solo el administrador central o el gerente de la oficina de la comisión, y nunca sobre una comisión propia.",
+        "operationId": "aprobar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la comisión",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comisión aprobada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin permiso para aprobar o comisión propia",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comisión no encontrada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Transición de estado inválida o modificación concurrente",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones/acuerdos/{id}/cerrar": {
+      "patch": {
+        "tags": [
+          "Acuerdos comerciales"
+        ],
+        "summary": "Cerrar un acuerdo comercial",
+        "description": "Fija la fecha de fin de vigencia del acuerdo. Solo el administrador central.",
+        "operationId": "cerrar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del acuerdo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CerrarAcuerdoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Acuerdo cerrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcuerdoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo o id inválidos, o fecha de cierre inconsistente",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no es administrador central",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Acuerdo no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones": {
+      "get": {
+        "tags": [
+          "Comisiones"
+        ],
+        "summary": "Listar comisiones",
+        "description": "Devuelve las comisiones paginadas, de la firma más reciente a la más antigua. El administrador central ve todas, el gerente las de su oficina y el agente las propias (el agente solo ve su línea del reparto). El rol CLIENTE no tiene acceso.",
+        "operationId": "listar_1",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Filtra por estado de la comisión",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDIENTE",
+                "APROBADA",
+                "PAGADA",
+                "ANULADA",
+                "REVERTIDA"
+              ]
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "description": "Fecha de firma mínima (inclusive), formato yyyy-MM-dd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-01-01"
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "description": "Fecha de firma máxima (inclusive), formato yyyy-MM-dd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-12-31"
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página, empieza en 0",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "tamanio",
+            "in": "query",
+            "description": "Tamaño de página (máximo 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de comisiones",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaResponseComisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros con formato inválido o rango de fechas inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no tiene acceso a las comisiones",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones/{id}": {
+      "get": {
+        "tags": [
+          "Comisiones"
+        ],
+        "summary": "Obtener detalle de una comisión",
+        "description": "Devuelve la comisión completa con su reparto e historial de estados. Accesible para el administrador central, el gerente de la oficina o el agente de la comisión.",
+        "operationId": "obtener",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la comisión",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle de la comisión",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComisionDetalleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario no tiene permiso sobre la comisión",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comisión no encontrada",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones/resumen": {
+      "get": {
+        "tags": [
+          "Comisiones"
+        ],
+        "summary": "Resumen de comisiones por estado",
+        "description": "Agrupa cantidad y monto de comisiones por estado en un rango de fechas de firma. Por defecto va desde el 1 de enero del año actual hasta hoy. El monto depende del rol: total para el administrador, participación de la oficina para el gerente y participación propia para el agente.",
+        "operationId": "resumen",
+        "parameters": [
+          {
+            "name": "desde",
+            "in": "query",
+            "description": "Inicio del rango (inclusive), formato yyyy-MM-dd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-01-01"
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "description": "Fin del rango (inclusive), formato yyyy-MM-dd",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-12-31"
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen por estado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumenComisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Fechas con formato inválido o rango inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no tiene acceso a las comisiones",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comisiones/acuerdos/{id}": {
+      "get": {
+        "tags": [
+          "Acuerdos comerciales"
+        ],
+        "summary": "Obtener un acuerdo comercial",
+        "description": "Devuelve el acuerdo con sus reglas. Solo para el administrador central y los gerentes de oficina.",
+        "operationId": "obtener_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del acuerdo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "Id del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (lo inyecta el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle del acuerdo",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcuerdoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no puede consultar acuerdos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Acuerdo no encontrado",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CrearAcuerdoRequest": {
+        "type": "object",
+        "description": "Datos para crear un acuerdo comercial",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "description": "Nombre del acuerdo",
+            "example": "Acuerdo comercial 2026",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "vigenteDesde": {
+            "type": "string",
+            "format": "date",
+            "description": "Inicio de la vigencia",
+            "example": "2026-01-01"
+          },
+          "vigenteHasta": {
+            "type": "string",
+            "format": "date",
+            "description": "Fin de la vigencia; null si el acuerdo no tiene fecha de cierre",
+            "example": "2026-12-31"
+          },
+          "reglas": {
+            "type": "array",
+            "description": "Reglas por tipo de contrato; una por tipo y obligatorias COMPRAVENTA y ALQUILER",
+            "items": {
+              "$ref": "#/components/schemas/ReglaRequest"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "nombre",
+          "reglas",
+          "vigenteDesde"
+        ]
+      },
+      "ReglaRequest": {
+        "type": "object",
+        "description": "Regla de cálculo y reparto para un tipo de contrato; los tres porcentajes deben sumar 100",
+        "properties": {
+          "tipoContrato": {
+            "type": "string",
+            "description": "Tipo de contrato al que aplica la regla",
+            "enum": [
+              "ARRAS",
+              "ALQUILER",
+              "COMPRAVENTA"
+            ],
+            "example": "COMPRAVENTA"
+          },
+          "baseCalculo": {
+            "type": "string",
+            "description": "Base de cálculo; MESES_CANON solo aplica a ALQUILER",
+            "enum": [
+              "PORCENTAJE_PRECIO",
+              "MESES_CANON"
+            ],
+            "example": "PORCENTAJE_PRECIO"
+          },
+          "valor": {
+            "type": "number",
+            "description": "Porcentaje sobre el precio (máximo 100) o número de meses de canon, según la base",
+            "example": 3,
+            "minimum": 0.0001
+          },
+          "porcentajeAgente": {
+            "type": "number",
+            "description": "Porcentaje de la comisión para el agente",
+            "example": 50,
+            "maximum": 100,
+            "minimum": 0
+          },
+          "porcentajeOficina": {
+            "type": "number",
+            "description": "Porcentaje de la comisión para la oficina",
+            "example": 30,
+            "maximum": 100,
+            "minimum": 0
+          },
+          "porcentajeCentral": {
+            "type": "number",
+            "description": "Porcentaje de la comisión para la central",
+            "example": 20,
+            "maximum": 100,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "baseCalculo",
+          "porcentajeAgente",
+          "porcentajeCentral",
+          "porcentajeOficina",
+          "tipoContrato",
+          "valor"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Respuesta de error estándar del servicio",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "Código del error",
+            "example": "COMISION_NO_ENCONTRADA"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje legible del error",
+            "example": "La comisión no existe"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código HTTP",
+            "example": 404
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del error"
+          }
+        }
+      },
+      "AcuerdoResponse": {
+        "type": "object",
+        "description": "Acuerdo comercial con sus reglas",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del acuerdo"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "Nombre del acuerdo",
+            "example": "Acuerdo comercial 2026"
+          },
+          "vigenteDesde": {
+            "type": "string",
+            "format": "date",
+            "description": "Inicio de la vigencia",
+            "example": "2026-01-01"
+          },
+          "vigenteHasta": {
+            "type": "string",
+            "format": "date",
+            "description": "Fin de la vigencia; null si no tiene fecha de cierre",
+            "example": "2026-12-31"
+          },
+          "creadoPor": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del administrador que creó el acuerdo"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de creación"
+          },
+          "reglas": {
+            "type": "array",
+            "description": "Reglas por tipo de contrato",
+            "items": {
+              "$ref": "#/components/schemas/ReglaResponse"
+            }
+          }
+        }
+      },
+      "ReglaResponse": {
+        "type": "object",
+        "description": "Regla de cálculo y reparto de un acuerdo comercial",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la regla"
+          },
+          "tipoContrato": {
+            "type": "string",
+            "description": "Tipo de contrato al que aplica",
+            "enum": [
+              "ARRAS",
+              "ALQUILER",
+              "COMPRAVENTA"
+            ]
+          },
+          "baseCalculo": {
+            "type": "string",
+            "description": "Base de cálculo",
+            "enum": [
+              "PORCENTAJE_PRECIO",
+              "MESES_CANON"
+            ]
+          },
+          "valor": {
+            "type": "number",
+            "description": "Porcentaje sobre el precio o número de meses de canon, según la base",
+            "example": 3
+          },
+          "porcentajeAgente": {
+            "type": "number",
+            "description": "Porcentaje para el agente",
+            "example": 50
+          },
+          "porcentajeOficina": {
+            "type": "number",
+            "description": "Porcentaje para la oficina",
+            "example": 30
+          },
+          "porcentajeCentral": {
+            "type": "number",
+            "description": "Porcentaje para la central",
+            "example": 20
+          }
+        }
+      },
+      "RevertirComisionRequest": {
+        "type": "object",
+        "description": "Datos para revertir el pago de una comisión",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "description": "Motivo de la reversión",
+            "example": "El pago fue rechazado por el banco",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "motivo"
+        ]
+      },
+      "ComisionResponse": {
+        "type": "object",
+        "description": "Resumen de una comisión",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la comisión"
+          },
+          "contratoId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del contrato firmado que originó la comisión"
+          },
+          "leadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del lead"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la propiedad"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del cliente"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del agente"
+          },
+          "nombreAgente": {
+            "type": "string",
+            "description": "Nombre del agente"
+          },
+          "oficinaId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina"
+          },
+          "nombreOficina": {
+            "type": "string",
+            "description": "Nombre de la oficina"
+          },
+          "tipoContrato": {
+            "type": "string",
+            "description": "Tipo de contrato",
+            "enum": [
+              "ARRAS",
+              "ALQUILER",
+              "COMPRAVENTA"
+            ]
+          },
+          "precioBase": {
+            "type": "number",
+            "description": "Precio sobre el que se calculó la comisión",
+            "example": 350000000
+          },
+          "montoTotal": {
+            "type": "number",
+            "description": "Monto total de la comisión",
+            "example": 10500000
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado actual de la comisión",
+            "enum": [
+              "PENDIENTE",
+              "APROBADA",
+              "PAGADA",
+              "ANULADA",
+              "REVERTIDA"
+            ]
+          },
+          "firmadoEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de firma del contrato"
+          },
+          "aprobadaEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de aprobación; null si no está aprobada"
+          },
+          "pagadaEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del pago; null si no está pagada"
+          },
+          "referenciaPago": {
+            "type": "string",
+            "description": "Referencia del pago; null si no está pagada",
+            "example": "TRX-2026-000123"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de creación"
+          },
+          "reparto": {
+            "type": "array",
+            "description": "Reparto entre beneficiarios; el rol AGENTE solo recibe su propia línea",
+            "items": {
+              "$ref": "#/components/schemas/RepartoResponse"
+            }
+          }
+        }
+      },
+      "RepartoResponse": {
+        "type": "object",
+        "description": "Línea de reparto de una comisión",
+        "properties": {
+          "beneficiarioTipo": {
+            "type": "string",
+            "description": "Tipo de beneficiario",
+            "enum": [
+              "AGENTE",
+              "OFICINA",
+              "CENTRAL"
+            ]
+          },
+          "beneficiarioId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del beneficiario (agente, oficina o central)"
+          },
+          "beneficiarioNombre": {
+            "type": "string",
+            "description": "Nombre del beneficiario"
+          },
+          "porcentaje": {
+            "type": "number",
+            "description": "Porcentaje de la comisión asignado",
+            "example": 50
+          },
+          "monto": {
+            "type": "number",
+            "description": "Monto asignado",
+            "example": 5250000
+          }
+        }
+      },
+      "PagarComisionRequest": {
+        "type": "object",
+        "description": "Datos para registrar el pago de una comisión",
+        "properties": {
+          "referenciaPago": {
+            "type": "string",
+            "description": "Referencia del pago (transferencia, comprobante, etc.)",
+            "example": "TRX-2026-000123",
+            "maxLength": 120,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "referenciaPago"
+        ]
+      },
+      "CerrarAcuerdoRequest": {
+        "type": "object",
+        "description": "Datos para cerrar la vigencia de un acuerdo comercial",
+        "properties": {
+          "vigenteHasta": {
+            "type": "string",
+            "format": "date",
+            "description": "Nueva fecha de fin de vigencia; no puede ser anterior al inicio ni ampliar la vigencia actual",
+            "example": "2026-12-31"
+          }
+        },
+        "required": [
+          "vigenteHasta"
+        ]
+      },
+      "PaginaResponseComisionResponse": {
+        "type": "object",
+        "description": "Página de resultados",
+        "properties": {
+          "contenido": {
+            "type": "array",
+            "description": "Elementos de la página",
+            "items": {
+              "$ref": "#/components/schemas/ComisionResponse"
+            }
+          },
+          "pagina": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de página, empieza en 0",
+            "example": 0
+          },
+          "tamanio": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Tamaño de página aplicado",
+            "example": 20
+          },
+          "totalElementos": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total de elementos que cumplen el filtro",
+            "example": 57
+          },
+          "totalPaginas": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total de páginas",
+            "example": 3
+          }
+        }
+      },
+      "ComisionDetalleResponse": {
+        "type": "object",
+        "description": "Detalle completo de una comisión con reparto e historial",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la comisión"
+          },
+          "contratoId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del contrato firmado que originó la comisión"
+          },
+          "leadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del lead"
+          },
+          "propiedadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la propiedad"
+          },
+          "clienteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del cliente"
+          },
+          "agenteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del agente"
+          },
+          "nombreAgente": {
+            "type": "string",
+            "description": "Nombre del agente"
+          },
+          "oficinaId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina"
+          },
+          "nombreOficina": {
+            "type": "string",
+            "description": "Nombre de la oficina"
+          },
+          "centralId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de la oficina central"
+          },
+          "tipoContrato": {
+            "type": "string",
+            "description": "Tipo de contrato",
+            "enum": [
+              "ARRAS",
+              "ALQUILER",
+              "COMPRAVENTA"
+            ]
+          },
+          "baseCalculo": {
+            "type": "string",
+            "description": "Base de cálculo aplicada",
+            "enum": [
+              "PORCENTAJE_PRECIO",
+              "MESES_CANON"
+            ]
+          },
+          "valorRegla": {
+            "type": "number",
+            "description": "Valor de la regla aplicada (porcentaje o meses de canon)",
+            "example": 3
+          },
+          "acuerdoId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del acuerdo comercial aplicado"
+          },
+          "precioBase": {
+            "type": "number",
+            "description": "Precio sobre el que se calculó la comisión",
+            "example": 350000000
+          },
+          "montoTotal": {
+            "type": "number",
+            "description": "Monto total de la comisión",
+            "example": 10500000
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado actual de la comisión",
+            "enum": [
+              "PENDIENTE",
+              "APROBADA",
+              "PAGADA",
+              "ANULADA",
+              "REVERTIDA"
+            ]
+          },
+          "firmadoEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de firma del contrato"
+          },
+          "aprobadaPor": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de quien aprobó; null si no está aprobada"
+          },
+          "aprobadaEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de aprobación; null si no está aprobada"
+          },
+          "pagadaPor": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id de quien registró el pago; null si no está pagada"
+          },
+          "pagadaEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del pago; null si no está pagada"
+          },
+          "referenciaPago": {
+            "type": "string",
+            "description": "Referencia del pago; null si no está pagada",
+            "example": "TRX-2026-000123"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de creación"
+          },
+          "reparto": {
+            "type": "array",
+            "description": "Reparto entre beneficiarios; el rol AGENTE solo recibe su propia línea",
+            "items": {
+              "$ref": "#/components/schemas/RepartoResponse"
+            }
+          },
+          "historial": {
+            "type": "array",
+            "description": "Historial de cambios de estado, del más antiguo al más reciente",
+            "items": {
+              "$ref": "#/components/schemas/HistorialResponse"
+            }
+          }
+        }
+      },
+      "HistorialResponse": {
+        "type": "object",
+        "description": "Cambio de estado de una comisión",
+        "properties": {
+          "estadoAnterior": {
+            "type": "string",
+            "description": "Estado anterior; null en el registro de creación",
+            "enum": [
+              "PENDIENTE",
+              "APROBADA",
+              "PAGADA",
+              "ANULADA",
+              "REVERTIDA"
+            ]
+          },
+          "estadoNuevo": {
+            "type": "string",
+            "description": "Estado nuevo",
+            "enum": [
+              "PENDIENTE",
+              "APROBADA",
+              "PAGADA",
+              "ANULADA",
+              "REVERTIDA"
+            ]
+          },
+          "usuarioId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id del usuario que hizo el cambio; null si lo hizo el sistema"
+          },
+          "motivo": {
+            "type": "string",
+            "description": "Motivo o nota del cambio"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del cambio"
+          }
+        }
+      },
+      "ResumenComisionResponse": {
+        "type": "object",
+        "description": "Resumen de comisiones por estado en un rango de fechas",
+        "properties": {
+          "desde": {
+            "type": "string",
+            "format": "date",
+            "description": "Inicio del rango aplicado",
+            "example": "2026-01-01"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date",
+            "description": "Fin del rango aplicado",
+            "example": "2026-12-31"
+          },
+          "perspectiva": {
+            "type": "string",
+            "description": "Qué monto se suma, según el rol: total, participación de oficina o del agente",
+            "enum": [
+              "PARTICIPACION_AGENTE",
+              "PARTICIPACION_OFICINA",
+              "MONTO_TOTAL"
+            ]
+          },
+          "porEstado": {
+            "type": "array",
+            "description": "Cantidad y monto por cada estado; siempre incluye todos los estados",
+            "items": {
+              "$ref": "#/components/schemas/ResumenEstadoResponse"
+            }
+          }
+        }
+      },
+      "ResumenEstadoResponse": {
+        "type": "object",
+        "description": "Totales de comisiones en un estado",
+        "properties": {
+          "estado": {
+            "type": "string",
+            "description": "Estado de la comisión",
+            "enum": [
+              "PENDIENTE",
+              "APROBADA",
+              "PAGADA",
+              "ANULADA",
+              "REVERTIDA"
+            ]
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Cantidad de comisiones",
+            "example": 12
+          },
+          "monto": {
+            "type": "number",
+            "description": "Suma de montos según la perspectiva del resumen",
+            "example": 45000000
+          }
+        }
+      }
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { RedirectIfAuthenticated, RequireAuth } from '@/auth/RequireAuth'
 import { GOOGLE_CLIENT_ID } from '@/components/auth/GoogleSignIn'
 import { PanelLayout } from '@/layouts/PanelLayout'
 import { PublicLayout } from '@/layouts/PublicLayout'
+import { ADMIN, ROLES_ACUERDOS, ROLES_COMISIONES } from '@/lib/commission'
 import { ROLES_DETALLE_CONTRATO, ROLES_LISTA_CONTRATOS } from '@/lib/contract'
 import { PUBLISHER_ROLES } from '@/lib/property'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -14,6 +15,11 @@ import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import VerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 import PanelHomePage from '@/pages/PanelHomePage'
 import AgentsPage from '@/pages/panel/AgentsPage'
+import AgreementCreatePage from '@/pages/panel/AgreementCreatePage'
+import AgreementDetailPage from '@/pages/panel/AgreementDetailPage'
+import AgreementsPage from '@/pages/panel/AgreementsPage'
+import CommissionDetailPage from '@/pages/panel/CommissionDetailPage'
+import CommissionsPage from '@/pages/panel/CommissionsPage'
 import ContractDetailPage from '@/pages/panel/ContractDetailPage'
 import ContractsPage from '@/pages/panel/ContractsPage'
 import LeadDetailPage from '@/pages/panel/LeadDetailPage'
@@ -93,6 +99,19 @@ export default function App() {
               </Route>
               <Route element={<RequireAuth roles={ROLES_DETALLE_CONTRATO} />}>
                 <Route path="contratos/:id" element={<ContractDetailPage />} />
+              </Route>
+              {/* Comisiones: agente (las suyas), gerente (su oficina) y admin (todas); el CLIENTE recibe 403 (docs/comisiones-service.md) */}
+              <Route element={<RequireAuth roles={ROLES_COMISIONES} />}>
+                <Route path="comisiones" element={<CommissionsPage />} />
+                <Route path="comisiones/:id" element={<CommissionDetailPage />} />
+              </Route>
+              {/* Acuerdos comerciales: el gerente solo consulta; crear y cerrar es del admin */}
+              <Route element={<RequireAuth roles={ROLES_ACUERDOS} />}>
+                <Route path="acuerdos" element={<AgreementsPage />} />
+                <Route path="acuerdos/:id" element={<AgreementDetailPage />} />
+              </Route>
+              <Route element={<RequireAuth roles={[ADMIN]} />}>
+                <Route path="acuerdos/nuevo" element={<AgreementCreatePage />} />
               </Route>
             </Route>
           </Route>

@@ -1,4 +1,4 @@
-import { Building, CalendarDays, ChevronRight, Contact, FileText, House, UserRound, Users, UsersRound } from 'lucide-react'
+import { Building, CalendarDays, ChevronRight, Coins, Contact, FileText, House, Landmark, UserRound, Users, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { ROLE_LABELS, useAuth } from '@/auth/auth-context'
@@ -17,6 +17,10 @@ const MODULES = [
   { icon: CalendarDays, title: 'Mis visitas', text: 'Consulta o cancela las visitas que agendaste.', to: '/panel/visitas', roles: ['CLIENTE'] },
   { icon: FileText, title: 'Contratos', text: 'Borradores por revisar y firmar, y PDF de los contratos firmados.', to: '/panel/contratos', roles: ['AGENTE'] },
   { icon: FileText, title: 'Mis contratos', text: 'Revisa tus contratos y descarga el PDF firmado.', to: '/panel/contratos', roles: ['CLIENTE'] },
+  { icon: Coins, title: 'Comisiones', text: 'Lo que te corresponde por cada contrato firmado y su estado de pago.', to: '/panel/comisiones', roles: ['AGENTE'] },
+  { icon: Coins, title: 'Comisiones', text: 'Comisiones de tu oficina: aprueba las pendientes.', to: '/panel/comisiones', roles: ['GERENTE_OFICINA'] },
+  { icon: Coins, title: 'Comisiones', text: 'Aprueba, registra pagos y revierte comisiones de toda la red.', to: '/panel/comisiones', roles: ['ADMINISTRADOR_CENTRAL'] },
+  { icon: Landmark, title: 'Acuerdos comerciales', text: 'Reglas de cálculo y reparto vigentes por tipo de contrato.', to: '/panel/acuerdos', roles: ['ADMINISTRADOR_CENTRAL', 'GERENTE_OFICINA'] },
 ]
 
 function greeting(date) {
