@@ -44,6 +44,15 @@ export function listPropiedades({ signal, ...params } = {}) {
 }
 
 /**
+ * GET /propiedades/por-ids?ids=a&ids=b → PropiedadResponse[] (la tarjeta liviana, con `urlPortada`).
+ * Respeta el orden de los ids, ignora los inexistentes y repetidos, y acepta hasta 50. No cuenta como vista:
+ * úsalo para pintar rankings en lugar de `getPropiedad`.
+ */
+export function getPropiedadesPorIds(ids, { signal } = {}) {
+  return request(`/propiedades/por-ids${query({ ids })}`, { method: 'GET', signal })
+}
+
+/**
  * GET /propiedades/{id} → PropiedadDetalleResponse { id, titulo, descripcion, precio, direccion, ciudad, latitud,
  * longitud, tipoPropiedad, modalidad, estadoComercial, caracteristicas, agenteId, nombreAgente, imagenes[], createdAt }.
  * `agenteId` es el id del USUARIO dueño (no el agente_id). `imagenes` ya viene ordenada.

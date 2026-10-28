@@ -36,6 +36,7 @@ import AgentProfilePage from '@/pages/public/AgentProfilePage'
 import OfficeDetailPage from '@/pages/public/OfficeDetailPage'
 import OfficesDirectoryPage from '@/pages/public/OfficesDirectoryPage'
 import PropertiesCatalogPage from '@/pages/public/PropertiesCatalogPage'
+import HomePage from '@/pages/public/HomePage'
 import PropertyDetailPage from '@/pages/public/PropertyDetailPage'
 
 function Providers({ children }) {
@@ -61,6 +62,7 @@ export default function App() {
 
           {/* Sitio público (sin sesión): GET /propiedades/**, GET /oficinas/** y GET /agentes/** */}
           <Route element={<PublicLayout />}>
+            <Route index element={<HomePage />} />
             <Route path="/propiedades" element={<PropertiesCatalogPage />} />
             <Route path="/propiedades/:id" element={<PropertyDetailPage />} />
             <Route path="/oficinas" element={<OfficesDirectoryPage />} />
@@ -118,8 +120,6 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* Temporal: el catálogo público de propiedades es la raíz */}
-          <Route path="/" element={<Navigate to="/propiedades" replace />} />
           <Route path="*" element={<Navigate to="/panel" replace />} />
         </Routes>
       </Providers>
