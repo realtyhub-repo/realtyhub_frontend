@@ -1,0 +1,481 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenAPI definition",
+    "version": "v0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8088",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Notificaciones",
+      "description": "Notificaciones in-app del usuario autenticado"
+    }
+  ],
+  "paths": {
+    "/notificaciones/{id}/leida": {
+      "patch": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Marcar una notificación como leída",
+        "operationId": "marcarLeida",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID de la notificación",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificación marcada como leída",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificacionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID con formato inválido",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La notificación no existe o no pertenece al usuario",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notificaciones/leer-todas": {
+      "patch": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Marcar todas las notificaciones como leídas",
+        "operationId": "marcarTodasLeidas",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cantidad de notificaciones marcadas",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarcadasResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notificaciones": {
+      "get": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Listar notificaciones",
+        "description": "Devuelve las notificaciones del usuario, paginadas y ordenadas de la más reciente a la más antigua",
+        "operationId": "listar",
+        "parameters": [
+          {
+            "name": "soloNoLeidas",
+            "in": "query",
+            "description": "Si es true, solo devuelve las notificaciones no leídas",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página (empieza en 0)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "tamanio",
+            "in": "query",
+            "description": "Cantidad de elementos por página (máximo 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de notificaciones",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaResponseNotificacionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notificaciones/no-leidas/contador": {
+      "get": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Contar notificaciones no leídas",
+        "operationId": "contarNoLeidas",
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "description": "ID del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "description": "Rol del usuario autenticado (inyectado por el gateway)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMINISTRADOR_CENTRAL",
+                "GERENTE_OFICINA",
+                "AGENTE",
+                "CLIENTE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cantidad de notificaciones no leídas",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContadorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Headers de autenticación faltantes o inválidos",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Respuesta de error estándar",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "Código de error",
+            "example": "NOTIFICACION_NO_ENCONTRADA"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje descriptivo del error",
+            "example": "No existe la notificación 3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Código HTTP",
+            "example": 404
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora del error"
+          }
+        }
+      },
+      "NotificacionResponse": {
+        "type": "object",
+        "description": "Notificación in-app de un usuario",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID de la notificación"
+          },
+          "tipo": {
+            "type": "string",
+            "description": "Tipo de evento que originó la notificación",
+            "enum": [
+              "VISITA_AGENDADA",
+              "VISITA_CANCELADA",
+              "RECORDATORIO_VISITA_24H",
+              "RECORDATORIO_VISITA_1H",
+              "OFERTA_ACEPTADA",
+              "CONTRATO_FIRMADO",
+              "CONTRATO_CANCELADO",
+              "COMISION_CREADA",
+              "COMISION_APROBADA",
+              "COMISION_PAGADA",
+              "COMISION_ANULADA",
+              "COMISION_REVERTIDA"
+            ]
+          },
+          "titulo": {
+            "type": "string",
+            "description": "Título de la notificación",
+            "example": "Visita agendada"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje de la notificación"
+          },
+          "referenciaId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "ID de la entidad relacionada (visita, contrato, comisión, etc.)"
+          },
+          "leida": {
+            "type": "boolean",
+            "description": "Indica si la notificación fue leída"
+          },
+          "leidaEn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Fecha y hora en que se leyó"
+          },
+          "creadaEn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de creación"
+          }
+        }
+      },
+      "MarcadasResponse": {
+        "type": "object",
+        "description": "Resultado de marcar todas las notificaciones como leídas",
+        "properties": {
+          "marcadas": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Cantidad de notificaciones que se marcaron como leídas",
+            "example": 5
+          }
+        }
+      },
+      "PaginaResponseNotificacionResponse": {
+        "type": "object",
+        "description": "Respuesta paginada",
+        "properties": {
+          "contenido": {
+            "type": "array",
+            "description": "Elementos de la página actual",
+            "items": {
+              "$ref": "#/components/schemas/NotificacionResponse"
+            }
+          },
+          "pagina": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Número de página actual (empieza en 0)",
+            "example": 0
+          },
+          "tamanio": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Tamaño de página",
+            "example": 20
+          },
+          "totalElementos": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total de elementos",
+            "example": 42
+          },
+          "totalPaginas": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total de páginas",
+            "example": 3
+          }
+        }
+      },
+      "ContadorResponse": {
+        "type": "object",
+        "description": "Contador de notificaciones no leídas",
+        "properties": {
+          "noLeidas": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Cantidad de notificaciones no leídas",
+            "example": 3
+          }
+        }
+      }
+    }
+  }
+}

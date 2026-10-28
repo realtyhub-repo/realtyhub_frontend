@@ -24,6 +24,7 @@ import ContractDetailPage from '@/pages/panel/ContractDetailPage'
 import ContractsPage from '@/pages/panel/ContractsPage'
 import LeadDetailPage from '@/pages/panel/LeadDetailPage'
 import LeadsPage from '@/pages/panel/LeadsPage'
+import NotificationsPage from '@/pages/panel/NotificationsPage'
 import OfficesPage from '@/pages/panel/OfficesPage'
 import PropertiesPage from '@/pages/panel/PropertiesPage'
 import PropertyCreatePage from '@/pages/panel/PropertyCreatePage'
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="/panel" element={<PanelLayout />}>
               <Route index element={<PanelHomePage />} />
               <Route path="perfil" element={<ProfilePage />} />
+              <Route path="notificaciones" element={<NotificationsPage />} />
               {/* Visitas: el CLIENTE ve las suyas; los demás roles, su agenda semanal (docs/visits-service.md) */}
               <Route path="visitas" element={<VisitsPage />} />
               <Route element={<RequireAuth roles={['ADMINISTRADOR_CENTRAL']} />}>

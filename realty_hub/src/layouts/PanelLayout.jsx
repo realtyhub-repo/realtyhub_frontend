@@ -1,4 +1,5 @@
 import {
+  Bell,
   Building,
   CalendarDays,
   ChevronRight,
@@ -21,11 +22,14 @@ import { Link, NavLink, Outlet, matchPath, useLocation, useNavigate } from 'reac
 import { getMe } from '@/api/userApi'
 import { ROLE_LABELS, useAuth } from '@/auth/auth-context'
 import { Wordmark } from '@/components/auth/AuthLayout'
+import { NotificationBell } from '@/components/panel/NotificationBell'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
+import { NotificationsProvider } from '@/hooks/NotificationsProvider'
+import { useNotifications } from '@/hooks/notifications-context'
 
 const ADMIN = 'ADMINISTRADOR_CENTRAL'
 const GERENTE = 'GERENTE_OFICINA'
@@ -37,6 +41,7 @@ const NAV_GROUPS = [
     title: 'General',
     items: [
       { to: '/panel', label: 'Inicio', icon: LayoutGrid, end: true },
+      { to: '/panel/notificaciones', label: 'Notificaciones', icon: Bell, badge: true },
       { to: '/panel/perfil', label: 'Mi perfil', icon: UserRound },
       { to: '/panel/visitas', label: 'Mis visitas', icon: CalendarDays, roles: ['CLIENTE'] },
       { to: '/panel/contratos', label: 'Mis contratos', icon: FileText, roles: ['CLIENTE'] },
@@ -79,6 +84,7 @@ const UPCOMING = []
 const ROUTE_TITLES = [
   ['/panel', 'Inicio'],
   ['/panel/perfil', 'Mi perfil'],
+  ['/panel/notificaciones', 'Notificaciones'],
   ['/panel/usuarios', 'Usuarios'],
   ['/panel/oficinas', 'Oficinas'],
   ['/panel/agentes', 'Agentes'],
@@ -132,63 +138,67 @@ export function PanelLayout() {
   const sidebarProps = { groups, displayName, roleLabel, photo: me.data?.urlFoto }
 
   return (
-    <div className="min-h-svh bg-floral-white md:grid md:grid-cols-[256px_minmax(0,1fr)]">
-      <aside className="hidden md:sticky md:top-0 md:flex md:h-svh">
-        <Sidebar {...sidebarProps} />
-      </aside>
+    <NotificationsProvider>
+      <div className="min-h-svh bg-floral-white md:grid md:grid-cols-[256px_minmax(0,1fr)]">
+        <aside className="hidden md:sticky md:top-0 md:flex md:h-svh">
+          <Sidebar {...sidebarProps} />
+        </aside>
 
-      <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-ash-grey/50 bg-floral-white/90 px-4 backdrop-blur-sm sm:px-8 lg:px-12">
-          <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="-ml-2 md:hidden" aria-label="Abrir menú">
-                <Menu className="size-5" strokeWidth={1.75} aria-hidden="true" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent side="left" hideClose>
-              <DialogTitle className="sr-only">Menú principal</DialogTitle>
-              <DialogDescription className="sr-only">Navegación del panel</DialogDescription>
-              <Sidebar {...sidebarProps} onNavigate={() => setMenuOpen(false)} />
-            </DialogContent>
-          </Dialog>
+        <div className="flex min-w-0 flex-col">
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-ash-grey/50 bg-floral-white/90 px-4 backdrop-blur-sm sm:px-8 lg:px-12">
+            <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="-ml-2 md:hidden" aria-label="Abrir menú">
+                  <Menu className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent side="left" hideClose>
+                <DialogTitle className="sr-only">Menú principal</DialogTitle>
+                <DialogDescription className="sr-only">Navegación del panel</DialogDescription>
+                <Sidebar {...sidebarProps} onNavigate={() => setMenuOpen(false)} />
+              </DialogContent>
+            </Dialog>
 
-          <nav aria-label="Ruta" className="flex min-w-0 items-center gap-1.5 text-small">
-            <span className="text-muted-foreground">Panel</span>
-            <ChevronRight className="size-3.5 shrink-0 text-ash-grey" strokeWidth={1.75} aria-hidden="true" />
-            <span className="truncate font-medium text-evergreen" aria-current="page">
-              {pageTitle}
-            </span>
-          </nav>
-
-          <div className="ml-auto flex items-center gap-4">
-            <p className="hidden text-small text-muted-foreground first-letter:uppercase lg:block">{todayLabel}</p>
-            <span className="hidden h-6 w-px bg-ash-grey/60 lg:block" aria-hidden="true" />
-            <Link
-              to="/panel/perfil"
-              className="flex items-center gap-3 rounded-control p-1 transition-colors duration-150 hover:bg-pale-oak/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="hidden text-right sm:block">
-                <span className="block max-w-[22ch] truncate text-small font-medium leading-tight text-evergreen">
-                  {displayName}
-                </span>
-                {me.data && <span className="block text-meta leading-tight text-muted-foreground">{roleLabel}</span>}
+            <nav aria-label="Ruta" className="flex min-w-0 items-center gap-1.5 text-small">
+              <span className="text-muted-foreground">Panel</span>
+              <ChevronRight className="size-3.5 shrink-0 text-ash-grey" strokeWidth={1.75} aria-hidden="true" />
+              <span className="truncate font-medium text-evergreen" aria-current="page">
+                {pageTitle}
               </span>
-              <Avatar name={displayName} src={me.data?.urlFoto} />
-            </Link>
-          </div>
-        </header>
+            </nav>
 
-        <main className="flex-1 px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
-          <Outlet context={outletContext} />
-        </main>
+            <div className="ml-auto flex items-center gap-4">
+              <p className="hidden text-small text-muted-foreground first-letter:uppercase lg:block">{todayLabel}</p>
+              <span className="hidden h-6 w-px bg-ash-grey/60 lg:block" aria-hidden="true" />
+              <NotificationBell />
+              <Link
+                to="/panel/perfil"
+                className="flex items-center gap-3 rounded-control p-1 transition-colors duration-150 hover:bg-pale-oak/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="hidden text-right sm:block">
+                  <span className="block max-w-[22ch] truncate text-small font-medium leading-tight text-evergreen">
+                    {displayName}
+                  </span>
+                  {me.data && <span className="block text-meta leading-tight text-muted-foreground">{roleLabel}</span>}
+                </span>
+                <Avatar name={displayName} src={me.data?.urlFoto} />
+              </Link>
+            </div>
+          </header>
+
+          <main className="flex-1 px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
+            <Outlet context={outletContext} />
+          </main>
+        </div>
       </div>
-    </div>
+    </NotificationsProvider>
   )
 }
 
 /** Contenido del sidebar: se reutiliza en escritorio (fijo) y en móvil (panel lateral). */
 function Sidebar({ groups, displayName, roleLabel, photo, onNavigate }) {
   const { logout, user } = useAuth()
+  const { noLeidas } = useNotifications()
   const navigate = useNavigate()
   const upcoming = UPCOMING.filter((i) => !i.roles || i.roles.includes(user?.rol))
   const [leaving, setLeaving] = useState(false)
@@ -208,7 +218,7 @@ function Sidebar({ groups, displayName, roleLabel, photo, onNavigate }) {
       <nav className="flex-1 space-y-8 overflow-y-auto px-3 py-6" aria-label="Principal">
         {groups.map((group) => (
           <NavGroup key={group.title} title={group.title}>
-            {group.items.map(({ to, label, icon: Icon, end }) => (
+            {group.items.map(({ to, label, icon: Icon, end, badge }) => (
               <li key={label}>
                 <NavLink
                   to={to}
@@ -234,6 +244,11 @@ function Sidebar({ groups, displayName, roleLabel, photo, onNavigate }) {
                       />
                       <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
                       {label}
+                      {badge && noLeidas > 0 && (
+                        <span className="ml-auto rounded-full bg-pale-oak px-2 py-0.5 text-meta font-medium leading-none tabular-nums text-evergreen">
+                          {noLeidas > 99 ? '99+' : noLeidas}
+                        </span>
+                      )}
                     </>
                   )}
                 </NavLink>
