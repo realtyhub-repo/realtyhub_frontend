@@ -99,16 +99,20 @@ export default function OfficesDirectoryPage() {
                   const active = hoverId === o.id || focusId === o.id
                   return (
                     <li key={o.id} ref={(el) => (el ? itemRefs.current.set(o.id, el) : itemRefs.current.delete(o.id))}>
-                      <Link
-                        to={`/oficinas/${o.id}`}
+                      <div
                         onMouseEnter={() => setHoverId(o.id)}
                         onMouseLeave={() => setHoverId(null)}
-                        onFocus={() => setFocusId(o.id)}
                         className={cn(
-                          'group block rounded-card border p-5 transition-[border-color,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          'group relative rounded-card border p-5 transition-[border-color,background-color] duration-200',
                           active ? 'border-evergreen/60 bg-pale-oak/20' : 'border-ash-grey/60 hover:border-evergreen/40',
                         )}
                       >
+                        <button
+                          type="button"
+                          onClick={() => setFocusId(o.id)}
+                          aria-label={`Ver ${o.nombre} en el mapa`}
+                          className="absolute inset-0 cursor-pointer rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
                             <h2 className="font-display text-subtitle font-semibold leading-tight text-evergreen">{o.nombre}</h2>
@@ -132,11 +136,14 @@ export default function OfficesDirectoryPage() {
                               ? `${subs} ${subs === 1 ? 'sucursal' : 'sucursales'} en su red`
                               : 'Oficina central'
                             : `Parte de ${centralName(o.oficinaCentralId) ?? 'una oficina central'}`}
-                          <span className="float-right font-medium text-emerald-depths transition-colors duration-150 group-hover:text-evergreen">
+                          <Link
+                            to={`/oficinas/${o.id}`}
+                            className="relative float-right rounded-sm font-medium text-emerald-depths transition-colors duration-150 group-hover:text-evergreen focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
                             Ver oficina
-                          </span>
+                          </Link>
                         </p>
-                      </Link>
+                      </div>
                     </li>
                   )
                 })}
